@@ -96,5 +96,3 @@ class Imdb(Base):
                 if year and year_ and abs(year - year_) > 1:
                     continue
                 return res
-
-        logger.error('failed to find "%s"%s from urls %s', query, ' (%s)' % year if year else '', urls)
