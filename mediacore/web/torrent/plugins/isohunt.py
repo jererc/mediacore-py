@@ -125,6 +125,11 @@ class Isohunt(BaseTorrent):
             for tr in tree.cssselect('tr.hlRow'):
                 log = html.tostring(tr, pretty_print=True)
 
+                # Skip "isohunt releases"
+                res = tr.cssselect('i')
+                if res and res[0].text.lower() == 'isohunt release':
+                    continue
+
                 result = Result()
                 try:
                     result.category = tr[0].text
