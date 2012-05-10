@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class TransmissionError(Exception): pass
-class TorrentExists(TransmissionError): pass
+class TorrentExists(Exception): pass
 
 
 class Transmission(object):
