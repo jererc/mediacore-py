@@ -173,14 +173,15 @@ def check_download_file(file, finished_file=None, finished=False):
         res = get_file(file)
         ext = res.ext.lower()
 
-    # Archive
     if res.type == 'archive':
         if res.is_main_file() and res.is_protected():
             logger.info('%s is password protected', file.encode('utf-8'))
             return False
 
-    # Video
-    elif res.type == 'video' and check_size(res.file, size_min=50):
+    elif res.type == 'video':
+        if not check_size(res.file, size_min=50):
+            return True
+
         info = res.get_file_info()
 
         # Check extension
@@ -189,12 +190,17 @@ def check_download_file(file, finished_file=None, finished=False):
                 logger.info('noticed %s has a bad extension for a tvshow', res.file)
                 return False
 
-        # Check length
+        # Check length and bitrate
         if isinstance(info['length'], (int, float)):
             size = get_size(res.file)
-            if info['length'] == 0 or (size and size / info['length'] > 1000):
-                logger.info('noticed an incorrect size/length value (%s MB / %s seconds) in %s', size, info['length'], res.file)
+            if info['length'] == 0:
+                logger.info('invalid length "%s" in %s', info['length'], res.file)
                 return False
+            else:
+                bitrate = size * 8 / info['length']
+                if not 300 < bitrate < 10000:
+                    logger.info('invalid bitrate "%s" in %s', bitrate, res.file)
+                    return False
         elif finished:
             logger.info('failed to get length from %s', res.file)
             return False
@@ -202,7 +208,7 @@ def check_download_file(file, finished_file=None, finished=False):
         # Check codec
         if info['video_codec']:
             if RE_BAD_CODEC.search(info['video_codec']):
-                logger.info('noticed an incorrect video codec (%s) in %s', info['video_codec'], res.file)
+                logger.info('invalid video codec "%s" in %s', info['video_codec'], res.file)
                 return False
         elif finished:
             logger.info('failed to get video codec from %s', res.file)
@@ -210,7 +216,7 @@ def check_download_file(file, finished_file=None, finished=False):
 
         if info['audio_codec']:
             if RE_BAD_CODEC.search(info['audio_codec']):
-                logger.info('noticed an incorrect audio codec (%s) in %s', info['audio_codec'], res.file)
+                logger.info('invalid audio codec "%s" in %s', info['audio_codec'], res.file)
                 return False
         elif finished:
             logger.info('failed to get audio codec from %s', res.file)
@@ -219,7 +225,7 @@ def check_download_file(file, finished_file=None, finished=False):
         # Check fourcc
         if info['video_fourcc']:
             if RE_BAD_CODEC.search(info['video_fourcc']):
-                logger.info('noticed an incorrect video fourcc (%s) in %s', info['video_fourcc'], res.file)
+                logger.info('invalid video fourcc "%s" in %s', info['video_fourcc'], res.file)
                 return False
         elif finished:
             logger.info('failed to get video fourcc from %s', res.file)
@@ -227,7 +233,7 @@ def check_download_file(file, finished_file=None, finished=False):
 
         if info['audio_fourcc']:
             if RE_BAD_CODEC.search(info['audio_fourcc']):
-                logger.info('noticed an incorrect audio fourcc (%s) in %s', info['audio_fourcc'], res.file)
+                logger.info('invalid audio fourcc "%s" in %s', info['audio_fourcc'], res.file)
                 return False
         elif finished:
             logger.info('failed to get audio fourcc from %s', res.file)
