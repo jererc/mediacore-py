@@ -127,7 +127,6 @@ class Torrentz(BaseTorrent):
             for torrent_url in self._torrent_urls(mirror_url):
                 res = parse_magnet_url(torrent_url)
                 if not res or not 'dn' in res:
-                    logger.debug('failed to get title from magnet url %s at %s', torrent_url, mirror_url)
                     continue
 
                 title = clean(res['dn'][0])
