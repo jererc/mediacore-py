@@ -12,8 +12,9 @@ from mediacore.util.media import is_html
 DEFAULT_LANG = 'eng'
 RE_URL_FILE = re.compile(r'/file/[^/]+$', re.I)
 RE_FILE = re.compile(r'\[IMG\](.*)\s+\(.*?\)$', re.I)
-RE_MAXIMUM_DOWNLOAD = re.compile(r'\bmaximum\sdownload\scount\b', re.I)
-RE_ERROR = re.compile(r'\bcritical\serror\b', re.I)
+RE_MAXIMUM_DOWNLOAD = re.compile(r'\bmaximum\s+download\s+count\b', re.I)
+RE_ERROR = re.compile(r'\bcritical\s+error\b', re.I)
+RE_NO_RESULT = re.compile(r'<b>No\s+results</b>\s+found', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
 
 
@@ -22,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 class OpensubtitlesError(Exception): pass
 class DownloadQuotaReached(OpensubtitlesError): pass
-class DownloadError(OpensubtitlesError): pass
 
 
 class Opensubtitles(Base):
@@ -56,7 +56,8 @@ class Opensubtitles(Base):
                         })
 
             if not info:
-                logger.error('failed to find subtitles files at %s', url)
+                if not RE_NO_RESULT.search(self.browser.response().get_data()):
+                    logger.error('failed to find subtitles files at %s', url)
 
         except WEB_EXCEPTIONS:
             pass
@@ -90,8 +91,9 @@ class Opensubtitles(Base):
 
         tree = html.fromstring(data)
         trs = tree.cssselect('#search_results tr[id]')
-        if not trs:     # subtitles files page
-            yield self.browser.geturl()
+        if not trs:
+            if not tree.cssselect('#search_results'):    # skip tvshow whole season page
+                yield self.browser.geturl()
         else:
             for tr in trs:
                 links = tr.cssselect('a')
@@ -108,6 +110,9 @@ class Opensubtitles(Base):
                         yield res
 
     def results(self, name, season=None, episode=None, date=None, lang=DEFAULT_LANG):
+        if not self.accessible:
+            return
+
         fields = {
             'MovieName': name,
             'SubLanguageID': [lang],
@@ -151,7 +156,8 @@ class Opensubtitles(Base):
                 raise DownloadQuotaReached('failed to download %s: maximum download quota reached' % url)
             elif RE_ERROR.search(data):
                 raise OpensubtitlesError('failed to download %s: opensubtitles error' % url)
-            raise DownloadError('downloaded bad data from %s: %s[...])' % (url, repr(data[:100])))
+            logger.error('downloaded invalid subtitles from %s: %s[...])', url, repr(data[:100]))
+            return
 
         with open(dst, 'wb') as fd:
             fd.write(data)
