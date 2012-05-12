@@ -36,6 +36,7 @@ ARCHIVE_DEF = {
     # '.ace': ['unace', 'x', '-y'], # assume yes to all questions
     }
 RE_RAR_PASSWORD = re.compile(r'\bEnter password.*for.*:\W*', re.I)
+RE_ZIP_PASSWORD = re.compile(r'\bpassword:\W*', re.I)
 PATTERNS_LANGS_WORDS = {
     'en': r"i'm|it's|you're|he|she|they|this|that|what|when|why|how|have|has|was|were|yours?|tells?|says?",
     'fr': r"je|il|elle|nous|vous|vais|allons|vont|suis|sommes|sont|j'ai|avons|avez|c'est|cette|mais|donc",
@@ -56,7 +57,7 @@ def iter_files(path_root, incl_files=True, incl_dirs=False, topdown=False, recur
     '''Iterate files in the root path.
     '''
     if not os.path.exists(path_root):
-        logger.error('noticed %s does not exist', path_root)
+        logger.error('%s does not exist', path_root)
     elif os.path.isfile(path_root):
         if incl_files:
             yield path_root
@@ -75,17 +76,21 @@ def iter_files(path_root, incl_files=True, incl_dirs=False, topdown=False, recur
                     or (incl_files and os.path.isfile(file)):
                 yield file
 
-def get_file(file, force_type=None):
+def get_file(file, real_file=None):
     '''Get a File object.
 
-    :param force_type: file type
+    :param real_file: real file
     '''
     cl_default = File
-    file_type = force_type or get_file_type(file)
+
+    if real_file:
+        file_type = get_file_type(real_file)
+    else:
+        file_type = get_file_type(file)
 
     if file_type:
         cl = globals().get(file_type.capitalize(), cl_default)
-        return cl(file, force_type=force_type)
+        return cl(file, real_file=real_file)
     return cl_default(file)
 
 def files(path_root, re_file=None, re_path=None, re_filename=None, re_ext=None,
@@ -94,7 +99,7 @@ def files(path_root, re_file=None, re_path=None, re_filename=None, re_ext=None,
     '''Iterate files and yield File objects according to the file type.
     '''
     if not os.path.exists(path_root):
-        logger.error('noticed %s does not exist', path_root)
+        logger.error('%s does not exist', path_root)
     else:
         for file in iter_files(path_root, incl_files=incl_files,
                 incl_dirs=incl_dirs, topdown=topdown, recursive=recursive):
@@ -150,7 +155,7 @@ def get_modified_date(file):
 
 def get_file_type(file):
     # Custom types
-    if os.path.isfile(file):
+    if not os.path.isdir(file):
         ext = os.path.splitext(file)[1].lower()
         if ext in ARCHIVE_DEF:
             return 'archive'
@@ -297,11 +302,18 @@ def is_html(data):
 #
 
 class File(object):
-    def __init__(self, file, force_type=None):
+    def __init__(self, file, real_file=None):
         self.file = file
-        self.type = force_type or get_type(file)
+        self.type = get_type(file)
         self.path, self.filename, self.ext = fsplit(file)
         self.dir = os.path.basename(self.path)
+
+        if real_file:
+            self.real_file = real_file
+            self.real_type = get_type(real_file)
+            self.real_path, self.real_filename, self.real_ext = fsplit(real_file)
+            self.real_dir = os.path.basename(self.real_path)
+            self.type = self.real_type
 
     def get_file_info(self):
         '''Get the file info.
@@ -555,21 +567,29 @@ class Archive(File):
             if get_type(file) == self.type:
                 multipart_archives.append(file)
 
-        if multipart_archives[0] == self.file:
+        if not multipart_archives or multipart_archives[0] == self.file:
             return True
 
     def is_protected(self):
-        '''Return True if a rar archive is password protected.
+        '''Return True if the archive is password protected.
         '''
-        if self.ext.lower() != '.rar':
+        ext = getattr(self, 'real_ext', self.ext).lower()
+        if ext == '.rar':
+            cmd = 'unrar t "%s"' % self.file
+            re_password = RE_RAR_PASSWORD
+        elif ext == '.zip':
+            cmd = 'unzip -t "%s"' % self.file
+            re_password = RE_ZIP_PASSWORD
+        else:
             return
 
         try:
-            session = pexpect.spawn('unrar t "%s"' % self.file,
-                    env={'PATH': os.environ['PATH'], 'TERM': 'dumb'})
-            res = session.expect_list([RE_RAR_PASSWORD, pexpect.TIMEOUT, pexpect.EOF])
+            session = pexpect.spawn(cmd, env={'PATH': os.environ['PATH'], 'TERM': 'dumb'})
+            res = session.expect_list([re_password, pexpect.TIMEOUT, pexpect.EOF])
             if res == 0:
                 return True
+            elif res == 1:
+                logger.error('command "%s" timed out', cmd)
         except pexpect.ExceptionPexpect:
             logger.exception('exception')
         finally:
