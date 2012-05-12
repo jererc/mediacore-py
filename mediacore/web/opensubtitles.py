@@ -32,16 +32,20 @@ class Opensubtitles(Base):
         super(Opensubtitles, self).__init__()
         if self.accessible:
             self.logged = self._login(username, password)
-            if not self.logged:
-                logger.error('failed to login as %s', username)
+        else:
+            self.logged = False
 
     def _login(self, username, password):
         res = self.submit_form(self.URL, name='loginform', fields={
                 'user': username,
                 'password': password,
                 })
-        if res:
-            return 'loginform' not in [f.name for f in self.browser.forms()]
+        if not res:
+            logger.error('failed to login')
+        elif 'loginform' in [f.name for f in self.browser.forms()]:
+            logger.error('failed to login as %s', username)
+        else:
+            return True
 
     def _get_subtitles(self, url):
         info = []
