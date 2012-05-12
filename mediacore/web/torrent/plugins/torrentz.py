@@ -167,6 +167,9 @@ class Torrentz(BaseTorrent):
                 if category and category != result.category:
                     continue
 
+                if dl.cssselect('span.pe'):     # skip 'pending' results (missing date and size)
+                    continue
+
                 try:
                     date = dl.find_class('a')[0][0].get('title')
                     result.date = self._get_date(date)
