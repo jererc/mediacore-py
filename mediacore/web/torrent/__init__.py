@@ -136,7 +136,7 @@ def _get_net_object(net):
         logger.error('failed to create %s object', net)
         return
     if not object_.accessible:
-        logger.info('noticed %s is inaccessible', object_.URL)
+        logger.info('%s is inaccessible', object_.URL)
         return
     return object_
 

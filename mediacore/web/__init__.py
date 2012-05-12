@@ -49,7 +49,7 @@ class Base(object):
             url = self.browser.geturl()
             if get_website_name(url) == get_website_name(self.URL):
                 return True
-            logger.info('noticed %s is redirected to %s', self.URL, url)
+            logger.info('%s is redirected to %s', self.URL, url)
         except WEB_EXCEPTIONS, e:
             logger.error('%s is not accessible: %s', self.URL, e)
         except Exception:
