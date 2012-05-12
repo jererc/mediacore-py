@@ -127,8 +127,10 @@ class Isohunt(BaseTorrent):
 
                 # Skip "isohunt releases"
                 res = tr.cssselect('i')
-                if res and res[0].text.lower() == 'isohunt release':
-                    continue
+                if res:
+                    val = res[0].text
+                    if val and val.lower() == 'isohunt release':
+                        continue
 
                 result = Result()
                 try:
