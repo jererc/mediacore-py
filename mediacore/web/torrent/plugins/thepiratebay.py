@@ -5,7 +5,7 @@ import logging
 from lxml import html
 
 from mediacore.web import WEB_EXCEPTIONS
-from mediacore.web.torrent import BaseTorrent, Result, TorrentError
+from mediacore.web.torrent import BaseTorrent, get_hash, Result, TorrentError
 from mediacore.util.title import clean, is_url
 
 
@@ -129,6 +129,11 @@ class Thepiratebay(BaseTorrent):
                 result.url_magnet = self._get_magnet_url(tr)
                 if not result.url_magnet:
                     logger.error('failed to get magnet url from %s', log)
+                    continue
+
+                result.hash = get_hash(result.url_magnet)
+                if not result.hash:
+                    logger.error('failed to get hash from %s', result.url_magnet)
                     continue
 
                 res = tr.find_class('detDesc')

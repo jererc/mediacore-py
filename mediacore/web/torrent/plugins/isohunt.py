@@ -10,7 +10,7 @@ from mediacore.web.torrent import BaseTorrent, Result, TorrentError
 from mediacore.util.title import clean, is_url
 
 
-PRIORITY = 1
+PRIORITY = None
 CAT_DEF = {
     'anime': 'anime',
     'apps': 'applications',

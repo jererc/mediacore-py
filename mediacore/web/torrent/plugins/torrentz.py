@@ -6,11 +6,12 @@ import logging
 from lxml import html
 
 from mediacore.web import Browser, WEB_EXCEPTIONS
-from mediacore.web.torrent import BaseTorrent, parse_magnet_url, Result, TorrentError, RE_URL_MAGNET
+from mediacore.web.torrent import (BaseTorrent, parse_magnet_url,
+        get_hash, Result, TorrentError, RE_URL_MAGNET)
 from mediacore.util.title import Title, clean, is_url
 
 
-PRIORITY = 2
+PRIORITY = 1
 CAT_DEF = {
     'anime': re.compile(r'\banime\b', re.I),
     'apps': re.compile(r'\bapplications?\b', re.I),
@@ -191,6 +192,11 @@ class Torrentz(BaseTorrent):
                 url_info = urljoin(self.URL, links[0].get('href'))
                 result.url_magnet = self._get_torrent_url(query, url_info)
                 if not result.url_magnet:
+                    continue
+
+                result.hash = get_hash(result.url_magnet)
+                if not result.hash:
+                    logger.error('failed to get hash from %s', result.url_magnet)
                     continue
 
                 result.page = page
