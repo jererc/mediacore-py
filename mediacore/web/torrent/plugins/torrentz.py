@@ -30,6 +30,7 @@ RE_OVERLOAD = re.compile(r'%s' % re.escape('please try again in a few seconds'),
 RE_DESC = re.compile(r'uploaded\s+(.*?)\s*,\s*size\s+(.*?)\s*,', re.I)
 RE_DATE = re.compile(r'^(y-day|today|\d\d-\d\d|\d+)\s+(\d\d:\d\d|\d{4}|mins?\s+ago)$', re.I)
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
+RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match\b', re.I)
 
 
 logger = logging.getLogger(__name__)
@@ -146,6 +147,14 @@ class Torrentz(BaseTorrent):
     def results(self, query, category=None, sort='age', pages_max=1):
         for page, data in self._pages(query, sort, pages_max):
             tree = html.fromstring(data)
+
+            # Skip approximate matches
+            res = tree.cssselect('div.results h3')
+            if not res:
+                logger.error('failed to check approximate matches at %s', self.browser.geturl())
+            elif RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
+                break
+
             for dl in tree.cssselect('div.results dl'):
                 links = dl.cssselect('a')
                 if not links:
