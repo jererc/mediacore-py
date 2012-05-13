@@ -33,20 +33,27 @@ class Transmission(object):
         '''Iterate torrents.
         '''
         for id in self.client.list():
-            yield self.get(id)
+            res = self.get(id)
+            if res:
+                yield res
 
     def get(self, id):
-        id = int(id)
+        '''Get a torrent.
+
+        :param id: transmission id or torrent hash
+        '''
         try:
-            res = self.client.info(id).get(id)
+            res = self.client.info(id).items()[0][1]
         except Exception:
             return
         if not res:
             return
 
         info = {
-            'id': id,
+            'hash': res.hashString,
+            'id': res.id,
             'name': res.name,
+            'error_string': res.errorString,
             'status': res.status,
             'torrent_file': res.torrentFile,
             'files': [f['name'] for f in res.files().values()],
@@ -56,17 +63,33 @@ class Transmission(object):
         return info
 
     def add(self, url, delete_torrent=True):
+        '''Add a torrent.
+
+        :return: torrent hash
+        '''
         try:
-            self.client.add_uri(url)
+            res = self.client.add_uri(url)
         except Exception, e:
             if RE_DUPLICATE.search(e.message):
                 raise TorrentExists('url %s is already queued in transmission' % url)
             raise TransmissionError('failed to add url %s: %s' % (url, e))
+
         if os.path.isfile(url) and delete_torrent:
             mmedia.remove_file(url)
 
+        try:
+            id = res.items()[0][0]
+            return self.get(id)['hash']
+        except Exception, e:
+            logger.error('failed to get torrent hash for url %s', url)
+
     def remove(self, id, delete_data=False):
-        id = int(id)
+        '''Remove a torrent.
+
+        :param id: transmission id or torrent hash
+
+        :return: True if successful
+        '''
         res = self.get(id)
         if not res:
             return
@@ -106,7 +129,7 @@ class Transmission(object):
             # Remove old torrents
             if torrent['date_added'] < datetime.utcnow() - max_torrent_age:
                 if self.remove(torrent['id'], delete_data=True):
-                    logger.info('removed torrent "%s" in transmission: obsolete (added %s)', torrent['name'], torrent['date_added'])
+                    logger.info('removed obsolete torrent "%s" in transmission (added %s)', torrent['name'], torrent['date_added'])
                     continue
 
             for file in torrent['files']:
