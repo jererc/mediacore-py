@@ -24,7 +24,7 @@ CAT_DEF = {     # category: (inclusion regex, exclusion regex)
     'tv': (RE_INCL_TV, RE_EXCL_VIDEO),
     }
 RE_SIZE = re.compile(r'^([\d\.]+)\W*\s*([gmk])?i?b\s*$', re.I)
-RE_URL_MAGNET = re.compile(r'^magnet:(\?.*)', re.I)
+RE_URL_MAGNET = re.compile(r'^magnet:\?(.*)', re.I)
 
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,11 @@ class BaseTorrent(Base):
 class Result(dict):
     def __init__(self):
         init = {
+            'hash': None,
             'title': None,
             'net_name': None,
-            'url_torrent': None,
             'url_magnet': None,
+            'url_torrent': None,
             'category': '',
             'size': None,
             'date': None,
@@ -107,7 +108,9 @@ def _get_nets():
     for filename in os.listdir(path):
         module, ext = os.path.splitext(filename)
         if ext == '.py' and module != '__init__':
-            res.append((_get_net_priority(module), module))
+            priority = _get_net_priority(module)
+            if priority is not None:
+                res.append((priority, module))
 
     return [net for i, net in sorted(res)]
 
@@ -171,12 +174,6 @@ def results(query, category=None, sort='age', pages_max=1, re_incl=None, re_excl
                     continue
 
                 result.net_name = net
-                result.download_info = {
-                    'title': result.title,
-                    'net_name': net,
-                    'url_magnet': result.url_magnet,
-                    'url_torrent': result.url_torrent,
-                    }
                 yield result
 
         except TorrentError, e:
@@ -189,3 +186,11 @@ def parse_magnet_url(url):
         return parse_qs(qs)
     except Exception:
         logger.error('failed to parse magnet url %s', url)
+
+def get_hash(url):
+    '''Get the torrent hash.
+    '''
+    res = parse_magnet_url(url)
+    if res and 'xt' in res:
+        hash = res['xt'][0].split(':')[-1]
+        return hash
