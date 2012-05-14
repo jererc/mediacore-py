@@ -41,7 +41,7 @@ class Youtube(object):
         title = clean(title)
 
         re_title = Title(title).get_search_re('word3')
-        query = '%s%s trailer' % (title, date or '')
+        query = '%s%s trailer' % (title, ' %s' % date if date else '')
         for result in self.results(query):
             if re_title.search(result['title']) and result['url_watch'] and result['urls_thumbnails']:
                 return result
