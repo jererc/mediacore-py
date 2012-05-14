@@ -25,10 +25,6 @@ RE_URL_SORT = {
     'age': re.compile(r'^date$', re.I),
     'seeds': re.compile(r'^peers$', re.I),
     }
-RE_URL_TORRENT = re.compile(r'\.torrent$', re.I)
-RE_OVERLOAD = re.compile(r'%s' % re.escape('please try again in a few seconds'), re.I)
-RE_DESC = re.compile(r'uploaded\s+(.*?)\s*,\s*size\s+(.*?)\s*,', re.I)
-RE_DATE = re.compile(r'^(y-day|today|\d\d-\d\d|\d+)\s+(\d\d:\d\d|\d{4}|mins?\s+ago)$', re.I)
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
 RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match\b', re.I)
 
@@ -79,8 +75,6 @@ class Torrentz(BaseTorrent):
                 if page > 1:
                     return
                 raise TorrentError('no data')
-            elif RE_OVERLOAD.search(data):
-                raise TorrentError('overload')
 
             yield page, data
 
