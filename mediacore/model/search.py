@@ -7,7 +7,7 @@ from mediacore.util.title import Title
 class Search(Base):
     COL = 'searches'
 
-    def add(self, q, category, mode='once', langs=None, pages_max=1):
+    def add(self, q, category, mode='once', langs=None):
         q = q.lower()
         category = category.lower()
         if not langs:
@@ -18,7 +18,6 @@ class Search(Base):
             'category': category,
             'mode': mode,
             'langs': langs,
-            'pages_max': pages_max,
             }
         res = self.get(q=q, category=category)
         if res:
