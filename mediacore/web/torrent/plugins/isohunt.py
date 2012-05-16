@@ -9,6 +9,9 @@ from mediacore.web import Browser, WEB_EXCEPTIONS
 from mediacore.web.torrent import BaseTorrent, Result, TorrentError
 from mediacore.util.title import clean, is_url
 
+#
+# TODO: handle torrent hash
+#
 
 PRIORITY = None
 CAT_DEF = {

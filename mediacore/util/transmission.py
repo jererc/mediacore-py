@@ -6,6 +6,7 @@ import logging
 import transmissionrpc
 
 from mediacore.util import media as mmedia
+from mediacore.util.title import clean
 from mediacore.util.download import check_download_file
 
 
@@ -50,7 +51,7 @@ class Transmission(object):
             return
 
         info = {
-            'hash': res.hashString,
+            'hash': res.hashString.lower(),
             'id': res.id,
             'name': res.name,
             'error_string': res.errorString,
@@ -71,7 +72,7 @@ class Transmission(object):
             res = self.client.add_uri(url)
         except Exception, e:
             if RE_DUPLICATE.search(e.message):
-                raise TorrentExists('url %s is already queued in transmission' % url)
+                raise TorrentExists('url %s is already queued' % url)
             raise TransmissionError('failed to add url %s: %s' % (url, e))
 
         if os.path.isfile(url) and delete_torrent:
@@ -79,7 +80,7 @@ class Transmission(object):
 
         try:
             id = res.items()[0][0]
-            return self.get(id)['hash']
+            return self.get(id)['hash'].lower()
         except Exception, e:
             logger.error('failed to get torrent hash for url %s', url)
 
@@ -103,35 +104,39 @@ class Transmission(object):
             return
         return True
 
-    def watch(self, dst, max_torrent_age):
-        '''Watch torrents and move finished downloads
-        to the destination directory.
+    def watch(self, dst, age_max=None, callable=None):
+        '''Watch torrents and move finished downloads to the destination.
 
-        :param dst: destination directory for finished downloads
-        :param max_torrent_age: maximum torrents age (timedelta)
+        :param dst: destination root directory
+        :param age_max: timedelta
+        :param callable: callable
+        '''
+        for torrent in self.torrents():
+
+            if not self._check_torrent_files(torrent):
+                if self.remove(torrent['id'], delete_data=True):
+                    logger.info('removed invalid torrent "%s" (%s%% done)', torrent['name'], int(torrent['progress']))
+
+            elif torrent['progress'] == 100:
+                if callable and not callable(torrent):
+                    continue
+
+                destination = self._get_destination_dir(torrent, dst)
+                if not self._move_torrent_files(torrent, destination):
+                    continue
+                if not self.remove(torrent['id']):
+                    continue
+                logger.info('removed finished torrent "%s"', torrent['name'])
+
+            elif age_max and torrent['date_added'] < datetime.utcnow() - age_max:
+                if self.remove(torrent['id'], delete_data=True):
+                    logger.info('removed obsolete torrent "%s" (added %s)', torrent['name'], torrent['date_added'])
+
+    def clean_download_directory(self):
+        '''Clean download directory.
         '''
         files_queued = []
         for torrent in self.torrents():
-            finished = torrent['progress'] == 100
-
-            # Check files
-            if not self._check_files(torrent['files'], finished=finished):
-                if self.remove(torrent['id'], delete_data=True):
-                    logger.info('removed invalid torrent "%s" in transmission (%s%% done)', torrent['name'], int(torrent['progress']))
-                    continue
-
-            # Move finished torrents
-            if finished and self._move_files(torrent['files'], dst):
-                if self.remove(torrent['id']):
-                    logger.info('removed complete torrent "%s" in transmission', torrent['name'])
-                continue
-
-            # Remove old torrents
-            if torrent['date_added'] < datetime.utcnow() - max_torrent_age:
-                if self.remove(torrent['id'], delete_data=True):
-                    logger.info('removed obsolete torrent "%s" in transmission (added %s)', torrent['name'], torrent['date_added'])
-                    continue
-
             for file in torrent['files']:
                 files_queued.append(os.path.join(self.download_dir, file))
 
@@ -142,16 +147,17 @@ class Transmission(object):
                 continue
             elif os.path.isfile(file) and file not in files_queued:
                 if mmedia.remove_file(file):
-                    logger.info('removed file %s: not queued in transmission', file.encode('utf-8'))
+                    logger.info('removed file %s: not queued', file.encode('utf-8'))
 
         # Remove empty directories not queued
         for path in mmedia.iter_files(self.download_dir, incl_files=False, incl_dirs=True):
             if not os.listdir(path) and not self._is_dir_queued(path, files_queued):
                 if mmedia.remove_file(path):
-                    logger.info('removed folder %s: not queued in transmission', path.encode('utf-8'))
+                    logger.info('removed empty directory %s: not queued', path.encode('utf-8'))
 
-    def _check_files(self, files, finished=False):
-        for file in files:
+    def _check_torrent_files(self, torrent):
+        finished = torrent['progress'] == 100
+        for file in torrent['files']:
             file = os.path.join(self.download_dir, file)
             if not check_download_file(file + '.part', finished_file=file, finished=finished):
                 return
@@ -159,16 +165,26 @@ class Transmission(object):
                 return
         return True
 
-    def _move_files(self, files, dst):
+    def _get_destination_dir(self, torrent, dst):
+        '''Get the base directory where to move the torrent files.
+        '''
+        root_files = [f for f in torrent['files'] if '/' not in f]
+        if not root_files:
+            base_dirs = set([r.split('/')[0] for r in torrent['files']])
+            if len(base_dirs) == 1:
+                return dst
+        return os.path.join(dst, clean(torrent['name']))
+
+    def _move_torrent_files(self, torrent, dst):
         '''Move files to the destination directory.
 
-        :param files: files relative to the dowload directory
-        :param dst: destination directory
+        :param torrent: torrent
+        :param dst: destination root directory
 
         :return: True if successful
         '''
         res = True
-        for file in files:
+        for file in torrent['files']:
             src = os.path.join(self.download_dir, file)
             if os.path.isfile(src):
                 dst_dir = os.path.dirname(os.path.join(dst, file))

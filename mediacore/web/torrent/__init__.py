@@ -192,5 +192,5 @@ def get_hash(url):
     '''
     res = parse_magnet_url(url)
     if res and 'xt' in res:
-        hash = res['xt'][0].split(':')[-1]
+        hash = res['xt'][0].split(':')[-1].lower()
         return hash
