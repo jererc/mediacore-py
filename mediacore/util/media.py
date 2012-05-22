@@ -141,6 +141,12 @@ def get_size(file):
     except Exception:
         pass
 
+def get_metadata(file):
+    try:
+        return metadata.parse(file)
+    except Exception:
+        return
+
 def check_size(file, size_min=None, size_max=None):
     '''Check file size (MB).
     '''
@@ -336,10 +342,7 @@ class Video(File):
             'video_fourcc': '',
             'audio_fourcc': '',
             }
-        try:
-            meta = metadata.parse(self.file)
-        except Exception:
-            meta = None
+        meta = get_metadata(self.file)
         if meta:
             try:
                 info['length'] = meta.length
@@ -440,10 +443,7 @@ class Audio(File):
             'track_number': '',
             'title': '',
             }
-        try:
-            meta = metadata.parse(self.file)
-        except Exception:
-            meta = None
+        meta = get_metadata(self.file)
         if meta:
             try:
                 info['artist'] = clean(meta.artist, 1)

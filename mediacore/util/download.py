@@ -5,7 +5,7 @@ import logging
 from systools.system import is_file_open
 
 from mediacore.util.media import (File, files, iter_files, clean_file, fsplit, rename_file,
-        remove_file, get_file, get_type, get_size, check_size)
+        remove_file, get_file, get_type, get_size, get_metadata, check_size)
 
 
 RE_BAD_CODEC = re.compile(r'\bunknown\b', re.I)
@@ -179,6 +179,9 @@ def check_download_file(file, finished_file=None, finished=False):
             return True
 
         info = file.get_file_info()
+
+        if finished and ext == '.mp4' and not get_metadata(file.file):
+            return True
 
         # Check extension
         if ext in ('.wmv', '.asf'):
