@@ -7,6 +7,9 @@ class Base(object):
     def __init__(self):
         self.col = get_db()[self.COL]
 
+    def save(self, *args, **kwargs):
+        return self.col.save(*args, **kwargs)
+
     def insert(self, *args, **kwargs):
         return self.col.insert(*args, **kwargs)
 
