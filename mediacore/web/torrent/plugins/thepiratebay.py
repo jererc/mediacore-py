@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class Thepiratebay(BaseTorrent):
-    URL = 'http://thepiratebay.se'
+    URL = 'https://tpb.pirateparty.org.uk'
 
     def _sort(self, sort):
         try:
