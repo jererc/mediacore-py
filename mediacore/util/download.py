@@ -109,23 +109,23 @@ def get_downloads(path_root):
                     }
                 for info in album.values():
                     # Get album attributes
-                    if info['artist'] and info['artist'] not in stat['artist']:
+                    if info.get('artist') and info['artist'] not in stat['artist']:
                         stat['artist'].append(info['artist'])
-                    if info['album'] and info['album'] not in stat['album']:
+                    if info.get('album') and info['album'] not in stat['album']:
                         stat['album'].append(info['album'])
-                    if info['date'] and info['date'] not in stat['date']:
+                    if info.get('date') and info['date'] not in stat['date']:
                         stat['date'].append(info['date'])
 
                     # Get track attributes
-                    if info['track_number'] and info['track_number'] not in stat['track_numbers']:
+                    if info.get('track_number') and info['track_number'] not in stat['track_numbers']:
                         stat['track_numbers'].append(info['track_number'])
-                    if info['title']:
+                    if info.get('title'):
                         stat['titles'].append(info['title'])
 
                 if len(stat['titles']) == len(album) and len(stat['track_numbers']) == len(album):
                     # Rename tracks files
                     for file, info in album.items():
-                        track_name = '%02d-%s-%s' % (int(info['track_number']), info['artist'], info['title'])
+                        track_name = '%02d-%s-%s' % (info.get('track_number', 0), info['artist'], info['title'])
                         track_name = re.sub(r'\s+', '_', track_name).lower()
                         file_dst = os.path.join(path, track_name + os.path.splitext(file)[1])
                         rename_file(file, file_dst)

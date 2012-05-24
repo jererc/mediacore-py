@@ -16,7 +16,6 @@ RE_AUDIO = re.compile(r'^((.*?)[\W_]*-[\W_]*(.*)|(\d{2,3})[\W_]*-[\W_]*(.*?)[\W_
 LIST_JUNK_SEARCH = ['the', 'a', 'and', 's', 'le', 'la', 'un', 'une', 'us']
 PATTERN_EXTRA = r'[\(\[\{].*?[\)\]\}]'
 PATTERN_RIP_PRE = r'\d*[\W_]*(cd|dvd)[\W_]*\d*|pal|ntsc|(480|576|720|1080)[pi]'
-# PATTERN_RIP_SOURCE = r'blu[\W_]*ray|stv|md|screener|ts|teaser|cam|r5|[hp]dtv|(bd|br|dvd|web|vod|dtt|tv)rip|dvd[\W_]*(r|rip|scr)?|dvd\w*|(bd|br)[\W_]*scr'
 PATTERN_RIP_MOVIES = r'blu[\W_]*ray|md|screener|ts|teaser|cam|r5|(bd|br|dvd|web|vod|dtt)rip|dvd[\W_]*(r|rip|scr)?|dvd\w*|(bd|br)[\W_]*scr'
 PATTERN_RIP_TV = r'[hp]dtv|stv|tv[\W_]?rip'
 PATTERN_RIP_FORMAT = r'ac3|xvid|divx|hd|[xh]264|rmvb'

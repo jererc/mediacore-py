@@ -1,6 +1,8 @@
 import re
 import logging
 
+from mediacore.util.title import clean
+
 from systools.system import popen
 
 
@@ -46,22 +48,22 @@ def get_info(file):
             try:
                 res['duration'] = int(info.get('duration')) / 1000     # seconds
             except Exception:
-                res['duration'] = None
+                pass
             try:
                 res['bitrate'] = int(info.get('overall bit rate'))     # bps
             except Exception:
-                res['bitrate'] = None
+                pass
 
             # Tags
-            res['artist'] = info.get('performer')
-            res['album'] = info.get('album')
+            res['artist'] = clean(info.get('performer', ''), 1)
+            res['album'] = clean(info.get('album', ''), 1)
             try:
                 res['date'] = int(info.get('recorded date'))
             except Exception:
                 pass
-            res['title'] = info.get('track name')
+            res['title'] = clean(info.get('track name', ''), 1)
             try:
-                res['track number'] = int(info.get('track name/position'))
+                res['track_number'] = int(info.get('track name/position'))
             except Exception:
                 pass
 
@@ -72,7 +74,7 @@ def get_info(file):
             try:
                 res['%s_bitrate' % cat] = int(info.get('bit rate'))    # bps
             except Exception:
-                res['%s_bitrate' % cat] = None
+                pass
             res['%s_codec' % cat] = info.get('codec')
             res['%s_codec_id' % cat] = info.get('codec id')
 

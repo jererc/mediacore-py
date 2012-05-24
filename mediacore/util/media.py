@@ -401,7 +401,7 @@ class Audio(File):
 
         info['full_name'] = '%s%s%s' % (info['artist'], ' ' if info['artist'] and info['album'] else '', info['album'])
         info['display_name'] = '%s%s%s' % (info['artist'], ' - ' if info['artist'] and info['album'] else '', info['album'])
-        if info['date']:
+        if info.get('date'):
             info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
 
         return info
