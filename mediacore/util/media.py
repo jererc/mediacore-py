@@ -7,17 +7,13 @@ import mimetypes
 import logging
 
 from lxml import html
-
-# Avoid metadata module debug messages flood
-logging.getLogger('metadata').setLevel(logging.CRITICAL)
-from kaa import metadata
-
 import pexpect
 
 from systools.system import popen
 
-from mediacore.util.title import Title, clean, get_year, PATTERN_EXTRA
+from mediacore.util.title import Title, clean, PATTERN_EXTRA
 from mediacore.util.util import in_range, compare_words
+from mediacore.util.mediainfo import get_info
 
 
 RE_TVSHOW_CHECK = re.compile(r'[\W_]s\d{2}e\d{2}[\W_]', re.I)
@@ -140,12 +136,6 @@ def get_size(file):
         return os.stat(file).st_size / 1024.0
     except Exception:
         pass
-
-def get_metadata(file):
-    try:
-        return metadata.parse(file)
-    except Exception:
-        return
 
 def check_size(file, size_min=None, size_max=None):
     '''Check file size (MB).
@@ -334,42 +324,10 @@ class File(object):
 
 class Video(File):
 
-    def _get_media_info(self):
-        info = {
-            'length': '',
-            'video_codec': '',
-            'audio_codec': '',
-            'video_fourcc': '',
-            'audio_fourcc': '',
-            }
-        meta = get_metadata(self.file)
-        if meta:
-            try:
-                info['length'] = meta.length
-            except Exception:
-                pass
-            try:
-                info['video_codec'] = str(meta.video[0].codec)
-            except Exception:
-                pass
-            try:
-                info['video_fourcc'] = str(meta.video[0].fourcc)
-            except Exception:
-                pass
-            try:
-                info['audio_codec'] = str(meta.audio[0].codec)
-            except Exception:
-                pass
-            try:
-                info['audio_fourcc'] = str(meta.audio[0].fourcc)
-            except Exception:
-                pass
-        return info
-
     def get_file_info(self):
         '''Get the file info.
         '''
-        info = self._get_media_info()
+        info = get_info(self.file)
 
         # Get title info using parent directory name and its parent's name
         title = Title(self.filename, [self.dir, os.path.basename(os.path.dirname(self.path))])
@@ -380,6 +338,7 @@ class Video(File):
             info['subtype'] = 'tv'
         else:
             info['subtype'] = 'movies'
+
         return info
 
     def get_base(self, path_root=None):
@@ -435,48 +394,16 @@ class Video(File):
 
 class Audio(File):
 
-    def _get_media_info(self):
-        info = {
-            'artist': '',
-            'album': '',
-            'date': None,
-            'track_number': '',
-            'title': '',
-            }
-        meta = get_metadata(self.file)
-        if meta:
-            try:
-                info['artist'] = clean(meta.artist, 1)
-            except Exception:
-                pass
-            try:
-                info['album'] = clean(meta.album, 1)
-            except Exception:
-                pass
-            try:
-                info['date'] = get_year(meta.userdate)
-            except Exception:
-                pass
-            try:
-                track_number = meta.trackno.split('/')[0]
-                if track_number.isdigit():
-                    info['track_number'] = track_number
-            except Exception:
-                pass
-            try:
-                info['title'] = clean(meta.title, 1)
-            except Exception:
-                pass
-        return info
-
     def get_file_info(self):
         '''Get the file info.
         '''
-        info = self._get_media_info()
+        info = get_info(self.file)
+
         info['full_name'] = '%s%s%s' % (info['artist'], ' ' if info['artist'] and info['album'] else '', info['album'])
         info['display_name'] = '%s%s%s' % (info['artist'], ' - ' if info['artist'] and info['album'] else '', info['album'])
         if info['date']:
             info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
+
         return info
 
     def get_base(self, path_root=None):

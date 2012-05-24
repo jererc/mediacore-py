@@ -104,18 +104,23 @@ class Transmission(object):
             return
         return True
 
-    def watch(self, dst, age_max=None, callable=None):
+    def watch(self, dst, dst_invalid=None, age_max=None, callable=None):
         '''Watch torrents and move finished downloads to the destination.
 
         :param dst: destination root directory
+        :param dst_invalid: destination directory for invalid files
         :param age_max: timedelta
         :param callable: callable
         '''
         for torrent in self.torrents():
 
             if not self._check_torrent_files(torrent):
-                if self.remove(torrent['id'], delete_data=True):
-                    logger.info('removed invalid torrent "%s" (%s%% done)', torrent['name'], int(torrent['progress']))
+                if torrent['progress'] == 100 and dst_invalid \
+                        and not self._move_torrent_files(torrent, dst_invalid):
+                    continue
+                if not self.remove(torrent['id'], delete_data=True):
+                    continue
+                logger.info('removed invalid torrent "%s" (%s%% done)', torrent['name'], int(torrent['progress']))
 
             elif torrent['progress'] == 100:
                 if callable and not callable(torrent):

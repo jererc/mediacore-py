@@ -5,13 +5,11 @@ import logging
 from systools.system import is_file_open
 
 from mediacore.util.media import (File, files, iter_files, clean_file, fsplit, rename_file,
-        remove_file, get_file, get_type, get_size, get_metadata, check_size)
+        remove_file, get_file, get_type, get_size, check_size)
 
 
-RE_BAD_CODEC = re.compile(r'\bunknown\b', re.I)
 RE_DOWNLOAD_JUNK = re.compile(r'/(\.DS_Store|Thumbs\.db)$', re.I)
 UNPACK_PASSES = 3
-SIZE_TVSHOW_MAX = 600   # for tvshow detection (MB)
 SIZE_ALBUM_IMAGE_MIN = 50     # KB
 
 
@@ -175,13 +173,10 @@ def check_download_file(file, finished_file=None, finished=False):
             return False
 
     elif file.type == 'video':
-        if not check_size(file.file, size_min=50):
+        if not check_size(file.file, size_min=100):
             return True
 
         info = file.get_file_info()
-
-        if finished and ext == '.mp4' and not get_metadata(file.file):
-            return True
 
         # Check extension
         if ext in ('.wmv', '.asf'):
@@ -189,53 +184,31 @@ def check_download_file(file, finished_file=None, finished=False):
                 logger.info('invalid extension "%s" for tvshow %s', ext, file.file)
                 return False
 
-        # Check length and bitrate
-        if isinstance(info['length'], (int, float)):
-            size = get_size(file.file)
-            if info['length'] == 0:
-                logger.info('invalid length "%s" in %s', info['length'], file.file)
+        # Check duration
+        if info.get('duration'):
+            if not 15 < info['duration'] / 60 < 180:
+                logger.info('invalid duration "%s" for %s', info['duration'], file.file)
                 return False
-            else:
-                bitrate = size * 8 / info['length']
-                if not 300 < bitrate < 10000:
-                    logger.info('invalid bitrate "%s" in %s', bitrate, file.file)
-                    return False
         elif finished:
-            logger.info('failed to get length from %s', file.file)
+            logger.info('failed to get duration for %s', file.file)
             return False
 
-        # Check codec
-        if info['video_codec']:
-            if RE_BAD_CODEC.search(info['video_codec']):
-                logger.info('invalid video codec "%s" in %s', info['video_codec'], file.file)
+        # Check bitrate
+        if info.get('video_bitrate') and info.get('audio_bitrate'):
+            if not 300 < info['video_bitrate'] / 1024 < 10000:
+                logger.info('invalid video bitrate "%s" for %s', info['video_bitrate'], file.file)
                 return False
-        elif finished:
-            logger.info('failed to get video codec from %s', file.file)
-            return False
+            if not 30 < info['audio_bitrate'] / 1024 < 1000:
+                logger.info('invalid audio bitrate "%s" for %s', info['video_bitrate'], file.file)
+                return False
 
-        if info['audio_codec']:
-            if RE_BAD_CODEC.search(info['audio_codec']):
-                logger.info('invalid audio codec "%s" in %s', info['audio_codec'], file.file)
+        elif info.get('bitrate'):
+            if not 300 < info['bitrate'] / 1024 < 10000:
+                logger.info('invalid bitrate "%s" for %s', info['video_bitrate'], file.file)
                 return False
-        elif finished:
-            logger.info('failed to get audio codec from %s', file.file)
-            return False
 
-        # Check fourcc
-        if info['video_fourcc']:
-            if RE_BAD_CODEC.search(info['video_fourcc']):
-                logger.info('invalid video fourcc "%s" in %s', info['video_fourcc'], file.file)
-                return False
         elif finished:
-            logger.info('failed to get video fourcc from %s', file.file)
-            return False
-
-        if info['audio_fourcc']:
-            if RE_BAD_CODEC.search(info['audio_fourcc']):
-                logger.info('invalid audio fourcc "%s" in %s', info['audio_fourcc'], file.file)
-                return False
-        elif finished:
-            logger.info('failed to get audio fourcc from %s', file.file)
+            logger.info('failed to get bitrate for %s', file.file)
             return False
 
     return True
