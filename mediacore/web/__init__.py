@@ -41,7 +41,16 @@ class Base(object):
     '''
     def __init__(self, debug_http=False):
         self.browser = Browser(debug_http=debug_http)
-        self.accessible = self._is_accessible()
+
+        if isinstance(self.URL, (tuple, list)):
+            urls = self.URL
+        else:
+            urls = [self.URL]
+
+        for self.URL in urls:
+            self.accessible = self._is_accessible()
+            if self.accessible:
+                break
 
     def _is_accessible(self):
         try:
