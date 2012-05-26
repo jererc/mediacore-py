@@ -33,7 +33,10 @@ logger = logging.getLogger(__name__)
 
 
 class Torrentz(BaseTorrent):
-    URL = 'http://torrentz.eu'
+    URL = [
+        'http://torrentz.eu',
+        'http://torrentz.piratereverse.info',
+        ]
 
     def _sort(self, sort):
         try:
