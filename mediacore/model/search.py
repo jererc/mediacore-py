@@ -7,18 +7,18 @@ from mediacore.util.title import Title
 class Search(Base):
     COL = 'searches'
 
-    def add(self, q, category, mode='once', langs=None):
+    def add(self, q, category, mode='once', langs=None, release_id=None):
         q = q.lower()
         category = category.lower()
-        if not langs:
-            langs = []
-
         search = {
             'q': q,
             'category': category,
             'mode': mode,
-            'langs': langs,
+            'langs': langs or [],
             }
+        if release_id:
+            search['release_id'] = release_id
+
         res = self.get(q=q, category=category)
         if res:
             self.update(res['_id'], info=search)

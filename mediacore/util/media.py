@@ -403,6 +403,7 @@ class Audio(File):
         info['display_name'] = '%s%s%s' % (info['artist'], ' - ' if info['artist'] and info['album'] else '', info['album'])
         if info.get('date'):
             info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
+        info['subtype'] = 'music'
 
         return info
 
