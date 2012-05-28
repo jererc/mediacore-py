@@ -60,6 +60,7 @@ class Transmission(object):
             'files': [f['name'] for f in res.files().values()],
             'date_added': res.date_added,
             'progress': res.progress,
+            'size': res.totalSize,
             }
         return info
 
