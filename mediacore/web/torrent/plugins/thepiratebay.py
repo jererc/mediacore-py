@@ -5,7 +5,8 @@ import logging
 from lxml import html
 
 from mediacore.web import WEB_EXCEPTIONS
-from mediacore.web.torrent import BaseTorrent, get_hash, Result, TorrentError
+from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
+        validate_lang, get_hash, Result, TorrentError)
 from mediacore.util.title import clean, is_url
 
 
@@ -112,7 +113,7 @@ class Thepiratebay(BaseTorrent):
             if url.startswith('magnet:?'):
                 return url
 
-    def results(self, query, category=None, sort='age', pages_max=1):
+    def results(self, query, category=None, sort='age', pages_max=1, **kwargs):
         for page, data in self._pages(query, category, sort, pages_max):
             tree = html.fromstring(data)
             for tr in tree.cssselect('#searchResult tr:not([class="header"])'):
@@ -129,6 +130,10 @@ class Thepiratebay(BaseTorrent):
                     logger.error('failed to get title from %s', log)
                     continue
                 result.title = res[0].text
+                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
+                    continue
+                if not validate_lang(result.title, kwargs.get('langs')):
+                    continue
 
                 result.url_magnet = self._get_magnet_url(tr)
                 if not result.url_magnet:
@@ -156,6 +161,9 @@ class Thepiratebay(BaseTorrent):
                 except Exception, e:
                     logger.error('failed to get size from "%s": %s', size, e)
                     continue
+                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+                    continue
+
                 try:
                     result.date = self._get_date(date)
                 except Exception, e:

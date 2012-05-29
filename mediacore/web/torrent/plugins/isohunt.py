@@ -6,7 +6,8 @@ import logging
 from lxml import html
 
 from mediacore.web import Browser, WEB_EXCEPTIONS
-from mediacore.web.torrent import BaseTorrent, Result, TorrentError
+from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
+        validate_lang, Result, TorrentError)
 from mediacore.util.title import clean, is_url
 
 #
@@ -122,7 +123,7 @@ class Isohunt(BaseTorrent):
             raise Exception('unknown date format: %s' % val)
         return date + (datetime.utcnow() - now)
 
-    def results(self, query, category=None, sort='age', pages_max=1):
+    def results(self, query, category=None, sort='age', pages_max=1, **kwargs):
         for page, data in self._pages(query, category, sort, pages_max):
             tree = html.fromstring(data)
             for tr in tree.cssselect('tr.hlRow'):
@@ -153,6 +154,10 @@ class Isohunt(BaseTorrent):
                     continue
                 title = self.get_link_text(html.tostring(links[-1]))
                 result.title = clean(title.split('<br>')[-1])
+                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
+                    continue
+                if not validate_lang(result.title, kwargs.get('langs')):
+                    continue
 
                 url_info = urljoin(self.URL, links[-1].get('href'))
                 result.url_torrent = self._get_torrent_url(url_info)
@@ -165,6 +170,9 @@ class Isohunt(BaseTorrent):
                 except Exception, e:
                     logger.error('failed to get size from %s: %s', log, e)
                     continue
+                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+                    continue
+
                 try:
                     result.date = self._get_date(clean(html.tostring(tr[1])))
                 except Exception, e:

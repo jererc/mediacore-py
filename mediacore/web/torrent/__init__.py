@@ -5,24 +5,10 @@ import logging
 
 from mediacore.web import Base
 from mediacore.util.title import Title, clean
+from mediacore.util.util import in_range, list_in
 
 
 PLUGINS_DIR = 'plugins'
-
-RE_INCL_MOVIES = re.compile(r'\b(br|bd|dvd)rip\b', re.I)
-RE_INCL_TV = re.compile(r'\b([hp]dtv|dsr(ip)?)\b', re.I)
-RE_EXCL_VIDEO = re.compile(r'\([^\)]*ipod[^\)]*\)|\b(720|1080)p\b|\[micro\]', re.I)
-RE_EXCL_ANIME = re.compile(r'\([^\)]*ipod[^\)]*\)|\b(720|1080)p\b|\[micro\]', re.I)
-
-CAT_DEF = {     # category: (inclusion regex, exclusion regex)
-    'anime': (None, RE_EXCL_ANIME),
-    'apps': (None, None),
-    'books': (None, None),
-    'games': (None, None),
-    'movies': (RE_INCL_MOVIES, RE_EXCL_VIDEO),
-    'music': (None, None),
-    'tv': (RE_INCL_TV, RE_EXCL_VIDEO),
-    }
 RE_SIZE = re.compile(r'^([\d\.]+)\W*\s*([gmk])?i?b\s*$', re.I)
 RE_URL_MAGNET = re.compile(r'^magnet:\?(.*)', re.I)
 
@@ -143,36 +129,27 @@ def _get_net_object(net):
         return
     return object_
 
-def results(query, category=None, sort='age', pages_max=1, re_incl=None, re_excl=None, nets=None):
-    if not nets:
-        nets = _get_nets()
-    if category:
-        category = category.lower()
-        if category not in CAT_DEF:
-            logger.error('invalid category %s for query "%s"' % (category, query))
-            category = None
+def results(query, **kwargs):
+    '''Get torrent results.
 
-    re_incl_cat, re_excl_cat = CAT_DEF.get(category, (None, None))
-
+    :param kwargs: extra parameters
+        - category: search category
+        - nets: list of plugins (thepiratebay, torrentz...)
+        - pages_max: maximum search pages
+    '''
+    nets = kwargs.get('nets', _get_nets())
     for net in nets:
         obj = _get_net_object(net)
         if not obj:
             continue
-        query_ = obj._get_query(query, category)
+
+        query_ = obj._get_query(query, kwargs.get('category'))
         if not query_:
+            logger.error('failed to process query "%s"', query)
             continue
 
         try:
-            for result in obj.results(query_, category, sort=sort, pages_max=pages_max):
-                if re_incl_cat and not re_incl_cat.search(result.title):
-                    continue
-                if re_excl_cat and re_excl_cat.search(result.title):
-                    continue
-                if re_incl and not re_incl.search(result.title):
-                    continue
-                if re_excl and re_excl.search(result.title):
-                    continue
-
+            for result in obj.results(query_, **kwargs):
                 result.net_name = net
                 yield result
 
@@ -194,3 +171,28 @@ def get_hash(url):
     if res and 'xt' in res:
         hash = res['xt'][0].split(':')[-1].lower()
         return hash
+
+def validate_title(title, re_incl=None, re_excl=None):
+    if re_incl:
+        if not isinstance(re_incl, (tuple, list)):
+            re_incl = [re_incl]
+        for re_ in re_incl:
+            if re_ and not re_.search(title):
+                return False
+
+    if re_excl:
+        if not isinstance(re_excl, (tuple, list)):
+            re_excl = [re_excl]
+        for re_ in re_excl:
+            if re_ and re_.search(title):
+                return False
+
+    return True
+
+def validate_lang(title, langs):
+    if not langs or list_in(langs, Title(title).langs, all=False):
+        return True
+
+def validate_number(val, val_min=None, val_max=None):
+    if val is None or in_range(val, val_min, val_max):
+        return True

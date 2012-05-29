@@ -61,10 +61,10 @@ def get_unique_list(seq):
         keys[e] = 1
     return keys.keys()
 
-def in_range(n, bottom=None, top=None):
-    if bottom and n < bottom:
+def in_range(n, val_min=None, val_max=None):
+    if val_min and n < val_min:
         return False
-    elif top and n > top:
+    elif val_max and n > val_max:
         return False
     return True
 

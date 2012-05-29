@@ -6,8 +6,9 @@ import logging
 from lxml import html
 
 from mediacore.web import Browser, WEB_EXCEPTIONS
-from mediacore.web.torrent import (BaseTorrent, parse_magnet_url,
-        get_hash, Result, TorrentError, RE_URL_MAGNET)
+from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
+        validate_lang, parse_magnet_url, get_hash, Result, TorrentError,
+        RE_URL_MAGNET)
 from mediacore.util.title import Title, clean, is_url
 
 
@@ -141,7 +142,7 @@ class Torrentz(BaseTorrent):
                 return key
         return 'other'
 
-    def results(self, query, category=None, sort='age', pages_max=1):
+    def results(self, query, category=None, sort='age', pages_max=1, **kwargs):
         for page, data in self._pages(query, sort, pages_max):
             tree = html.fromstring(data)
 
@@ -164,6 +165,10 @@ class Torrentz(BaseTorrent):
                 if not title:
                     continue
                 result.title = clean(title)
+                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
+                    continue
+                if not validate_lang(result.title, kwargs.get('langs')):
+                    continue
 
                 try:
                     res = RE_CATEGORIES.search(html.tostring(links[0]))
@@ -189,6 +194,9 @@ class Torrentz(BaseTorrent):
                 except Exception:
                     logger.debug('failed to get size from %s', log)
                     continue
+                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+                    continue
+
                 try:
                     seeds = dl.find_class('d')[0].text
                     result.seeds = int(seeds.replace(',', ''))
