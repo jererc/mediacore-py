@@ -5,9 +5,8 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Browser, WEB_EXCEPTIONS
-from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
-        validate_lang, parse_magnet_url, get_hash, Result, TorrentError,
+from mediacore.web import Base, Browser, WEB_EXCEPTIONS
+from mediacore.web.torrent import (parse_magnet_url, Result, TorrentError,
         RE_URL_MAGNET)
 from mediacore.util.title import Title, clean, is_url
 
@@ -33,7 +32,7 @@ RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match\b', re.I)
 logger = logging.getLogger(__name__)
 
 
-class Torrentz(BaseTorrent):
+class Torrentz(Base):
     URL = [
         'http://torrentz.eu',
         'http://torrentz.piratereverse.info',
@@ -165,10 +164,6 @@ class Torrentz(BaseTorrent):
                 if not title:
                     continue
                 result.title = clean(title)
-                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
-                    continue
-                if not validate_lang(result.title, kwargs.get('langs')):
-                    continue
 
                 try:
                     res = RE_CATEGORIES.search(html.tostring(links[0]))
@@ -190,11 +185,13 @@ class Torrentz(BaseTorrent):
                     continue
                 try:
                     size = dl.find_class('s')[0].text
-                    result.size = self._get_size(size)
                 except Exception:
                     logger.debug('failed to get size from %s', log)
                     continue
-                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+                if not result.get_size(size):
+                    continue
+
+                if not result.validate(**kwargs):
                     continue
 
                 try:
@@ -203,14 +200,12 @@ class Torrentz(BaseTorrent):
                 except Exception:
                     logger.debug('failed to get seeds from %s', log)
 
+                # Find torrent url
                 url_info = urljoin(self.URL, links[0].get('href'))
                 result.url_magnet = self._get_torrent_url(query, url_info)
                 if not result.url_magnet:
                     continue
-
-                result.hash = get_hash(result.url_magnet)
-                if not result.hash:
-                    logger.error('failed to get hash from %s', result.url_magnet)
+                if not result.get_hash():
                     continue
 
                 result.page = page

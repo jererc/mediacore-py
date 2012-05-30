@@ -5,9 +5,8 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Browser, WEB_EXCEPTIONS
-from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
-        validate_lang, Result, TorrentError)
+from mediacore.web import Base, Browser, WEB_EXCEPTIONS
+from mediacore.web.torrent import Result, TorrentError
 from mediacore.util.title import clean, is_url
 
 #
@@ -36,7 +35,7 @@ RE_DATE = re.compile(r'([\d\.]+)([hdw])', re.I)
 logger = logging.getLogger(__name__)
 
 
-class Isohunt(BaseTorrent):
+class Isohunt(Base):
     URL = 'http://isohunt.com'
 
     def _sort(self, sort):
@@ -154,23 +153,16 @@ class Isohunt(BaseTorrent):
                     continue
                 title = self.get_link_text(html.tostring(links[-1]))
                 result.title = clean(title.split('<br>')[-1])
-                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
-                    continue
-                if not validate_lang(result.title, kwargs.get('langs')):
-                    continue
-
-                url_info = urljoin(self.URL, links[-1].get('href'))
-                result.url_torrent = self._get_torrent_url(url_info)
-                if not result.url_torrent:
-                    logger.error('failed to get torrent url from %s', url_info)
-                    continue
 
                 try:
-                    result.size = self._get_size(tr[3].text)
-                except Exception, e:
-                    logger.error('failed to get size from %s: %s', log, e)
+                    size = tr[3].text
+                except Exception:
+                    logger.error('failed to get size from %s', log)
                     continue
-                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+                if not result.get_size(size):
+                    continue
+
+                if not result.validate(**kwargs):
                     continue
 
                 try:
@@ -182,6 +174,15 @@ class Isohunt(BaseTorrent):
                     result.seeds = int(tr[4].text)
                 except Exception:
                     pass
+
+                # Find torrent url
+                url_info = urljoin(self.URL, links[-1].get('href'))
+                result.url_torrent = self._get_torrent_url(url_info)
+                if not result.url_torrent:
+                    logger.error('failed to get torrent url from %s', url_info)
+                    continue
+                if not result.get_hash():
+                    continue
 
                 result.page = page
                 yield result

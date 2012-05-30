@@ -4,9 +4,8 @@ import logging
 
 from lxml import html
 
-from mediacore.web import WEB_EXCEPTIONS
-from mediacore.web.torrent import (BaseTorrent, validate_title, validate_number,
-        validate_lang, get_hash, Result, TorrentError)
+from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web.torrent import Result, TorrentError
 from mediacore.util.title import clean, is_url
 
 
@@ -32,7 +31,7 @@ RE_DATE = re.compile(r'^(y-day|today|\d\d-\d\d|\d+)\s+(\d\d:\d\d|\d{4}|mins?\s+a
 logger = logging.getLogger(__name__)
 
 
-class Thepiratebay(BaseTorrent):
+class Thepiratebay(Base):
     URL = [
         'https://tpb.pirateparty.org.uk',
         'https://piratereverse.info',
@@ -130,38 +129,28 @@ class Thepiratebay(BaseTorrent):
                     logger.error('failed to get title from %s', log)
                     continue
                 result.title = res[0].text
-                if not validate_title(result.title, re_incl=kwargs.get('re_incl'), re_excl=kwargs.get('re_excl')):
-                    continue
-                if not validate_lang(result.title, kwargs.get('langs')):
-                    continue
 
                 result.url_magnet = self._get_magnet_url(tr)
                 if not result.url_magnet:
                     logger.error('failed to get magnet url from %s', log)
                     continue
-
-                result.hash = get_hash(result.url_magnet)
-                if not result.hash:
-                    logger.error('failed to get hash from %s', result.url_magnet)
+                if not result.get_hash():
                     continue
 
                 res = tr.find_class('detDesc')
                 if not res:
                     logger.error('failed to get details from %s', log)
                     continue
-
                 details = clean(html.tostring(res[0]))
                 res_ = RE_DETAILS.search(details)
                 if not res_:
                     logger.error('failed to parse details: %s', details)
                     continue
                 date, size = res_.groups()
-                try:
-                    result.size = self._get_size(size)
-                except Exception, e:
-                    logger.error('failed to get size from "%s": %s', size, e)
+                if not result.get_size(size):
                     continue
-                if not validate_number(result.size, kwargs.get('size_min'), kwargs.get('size_max')):
+
+                if not result.validate(**kwargs):
                     continue
 
                 try:

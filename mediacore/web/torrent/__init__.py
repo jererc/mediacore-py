@@ -3,7 +3,6 @@ import re
 from urlparse import parse_qs
 import logging
 
-from mediacore.web import Base
 from mediacore.util.title import Title, clean
 from mediacore.util.util import in_range, list_in
 
@@ -17,33 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class TorrentError(Exception): pass
-
-
-class BaseTorrent(Base):
-    '''Base torrent website.
-    '''
-    def _get_query(self, query, category=None):
-        query = clean(query, 1)
-        if category == 'tv':
-            query = Title(query).name
-        elif category == 'anime':
-            query = Title(query).display_name
-        query = re.sub(r'[\W_]+|\s+s\s+|\sand\s|\sor\s|\snot\s', ' ', query)
-        query = re.sub(r'^the\s+|^[\W_]+|[\W_]+$', '', query)
-        return query
-
-    def _get_size(self, val):
-        '''Get the size in MB.
-        '''
-        n, unit = RE_SIZE.search(val).group(1, 2)
-        n = float(n)
-        if not unit:
-            n /= (1024 / 1024)
-        elif unit.lower() == 'k':
-            n /= 1024
-        elif unit.lower() == 'g':
-            n *= 1024
-        return n
 
 
 class Result(dict):
@@ -83,6 +55,80 @@ class Result(dict):
         else:
             return self.__delitem__(attr_name)
 
+    def _validate_title(self, re_incl=None, re_excl=None):
+        if re_incl:
+            if not isinstance(re_incl, (tuple, list)):
+                re_incl = [re_incl]
+            for re_ in re_incl:
+                if re_ and not re_.search(self.title):
+                    return False
+
+        if re_excl:
+            if not isinstance(re_excl, (tuple, list)):
+                re_excl = [re_excl]
+            for re_ in re_excl:
+                if re_ and re_.search(self.title):
+                    return False
+
+        return True
+
+    def _validate_lang(self, langs):
+        if not langs or list_in(langs, Title(self.title).langs, all=False):
+            return True
+
+    def _validate_size(self, size_min=None, size_max=None):
+        if self.size is None or in_range(self.size, size_min, size_max):
+            return True
+
+    def validate(self, **kwargs):
+        '''Validate the result attributes.
+
+        :param kwargs: filters
+            - re_incl: regex the title must match
+            - re_excl: regex the title must not match
+            - langs: langs the title must match
+            - size_min: minimum result size
+            - size_max: maximum result size
+        '''
+        if not self._validate_title(kwargs.get('re_incl'), kwargs.get('re_excl')):
+            return
+        if not self._validate_lang(kwargs.get('langs')):
+            return
+        if not self._validate_size(kwargs.get('size_min'), kwargs.get('size_max')):
+            return
+        return True
+
+    def get_size(self, val):
+        '''Get the result size in MB.
+        '''
+        res = RE_SIZE.search(val)
+        if not res:
+            logger.error('failed to get result size from "%s"', val)
+            return
+
+        size, unit = res.groups()
+        self.size = float(size)
+        if not unit:
+            self.size /= (1024 * 1024)
+        elif unit.lower() == 'k':
+            self.size /= 1024
+        elif unit.lower() == 'g':
+            self.size *= 1024
+        return True
+
+    def get_hash(self):
+        if self.url_magnet:
+            res = parse_magnet_url(self.url_magnet)
+            if res and 'xt' in res:
+                hash = res['xt'][0].split(':')[-1].lower()
+                if hash:
+                    self.hash = hash
+                    return True
+
+            logger.error('failed to get hash from magnet url "%s"', self.url_magnet)
+        else:
+            logger.error('failed to get hash from result %s', self)
+
 
 def _get_nets():
     '''Find torrent modules filenames.
@@ -102,11 +148,9 @@ def _get_nets():
 
 def _get_module(net):
     try:
-        module_ = __import__('%s.%s' % (PLUGINS_DIR, net), globals(), locals(), [net], -1)
+        return __import__('%s.%s' % (PLUGINS_DIR, net), globals(), locals(), [net], -1)
     except ImportError:
         logger.error('failed to import %s module', net)
-        return
-    return module_
 
 def _get_net_priority(net):
     module_ = _get_module(net)
@@ -117,25 +161,32 @@ def _get_net_object(net):
     '''Get a torrent plugin object.
     '''
     module_ = _get_module(net)
-    if not module_:
-        return
-    try:
-        object_ = getattr(module_, net.capitalize())()
-    except Exception:
-        logger.error('failed to create %s object', net)
-        return
-    if not object_.accessible:
-        logger.info('%s is inaccessible', object_.URL)
-        return
-    return object_
+    if module_:
+        try:
+            object_ = getattr(module_, net.capitalize())()
+        except Exception:
+            logger.error('failed to create %s object', net)
+            return
+        if not object_.accessible:
+            logger.info('%s is inaccessible', object_.URL)
+            return
+        return object_
+
+def get_query(query, category=None):
+    '''Get a clean query.
+    '''
+    query = clean(query, 1)
+    if category == 'tv':
+        query = Title(query).name
+    elif category == 'anime':
+        query = Title(query).display_name
+
+    query = re.sub(r'[\W_]+|\s+s\s+|\sand\s|\sor\s|\snot\s', ' ', query)
+    query = re.sub(r'^the\s+|^[\W_]+|[\W_]+$', '', query)
+    return query
 
 def results(query, **kwargs):
     '''Get torrent results.
-
-    :param kwargs: extra parameters
-        - category: search category
-        - nets: list of plugins (thepiratebay, torrentz...)
-        - pages_max: maximum search pages
     '''
     nets = kwargs.get('nets', _get_nets())
     for net in nets:
@@ -143,7 +194,7 @@ def results(query, **kwargs):
         if not obj:
             continue
 
-        query_ = obj._get_query(query, kwargs.get('category'))
+        query_ = get_query(query, kwargs.get('category'))
         if not query_:
             logger.error('failed to process query "%s"', query)
             continue
@@ -163,36 +214,3 @@ def parse_magnet_url(url):
         return parse_qs(qs)
     except Exception:
         logger.error('failed to parse magnet url %s', url)
-
-def get_hash(url):
-    '''Get the torrent hash.
-    '''
-    res = parse_magnet_url(url)
-    if res and 'xt' in res:
-        hash = res['xt'][0].split(':')[-1].lower()
-        return hash
-
-def validate_title(title, re_incl=None, re_excl=None):
-    if re_incl:
-        if not isinstance(re_incl, (tuple, list)):
-            re_incl = [re_incl]
-        for re_ in re_incl:
-            if re_ and not re_.search(title):
-                return False
-
-    if re_excl:
-        if not isinstance(re_excl, (tuple, list)):
-            re_excl = [re_excl]
-        for re_ in re_excl:
-            if re_ and re_.search(title):
-                return False
-
-    return True
-
-def validate_lang(title, langs):
-    if not langs or list_in(langs, Title(title).langs, all=False):
-        return True
-
-def validate_number(val, val_min=None, val_max=None):
-    if val is None or in_range(val, val_min, val_max):
-        return True
