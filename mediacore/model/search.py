@@ -7,7 +7,7 @@ from mediacore.util.title import Title
 class Search(Base):
     COL = 'searches'
 
-    def add(self, q, category, mode='once', langs=None, release_id=None):
+    def add(self, q, category, mode='once', langs=None, release_id=None, url_info=None):
         q = q.lower()
         category = category.lower()
         search = {
@@ -18,6 +18,8 @@ class Search(Base):
             }
         if release_id:
             search['release_id'] = release_id
+        if url_info:
+            search['url_info'] = url_info
 
         res = self.get(q=q, category=category)
         if res:
