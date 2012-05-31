@@ -1,6 +1,7 @@
 import os
 import re
 from urlparse import parse_qs
+from datetime import datetime
 import logging
 
 from mediacore.util.title import Title, clean
@@ -23,15 +24,15 @@ class Result(dict):
         init = {
             'hash': None,
             'title': None,
-            'net_name': None,
+            'category': '',
             'url_magnet': None,
             'url_torrent': None,
-            'category': '',
             'size': None,
             'date': None,
             'seeds': None,
-            'private': False,
             'page': 1,
+            'created': datetime.utcnow(),
+            'processed': False,
             }
         super(Result, self).__init__(init)
 
@@ -165,7 +166,7 @@ def _get_net_object(net):
         try:
             object_ = getattr(module_, net.capitalize())()
         except Exception:
-            logger.error('failed to create %s object', net)
+            logger.error('failed to create %s object', net.capitalize())
             return
         if not object_.accessible:
             logger.info('%s is inaccessible', object_.URL)
