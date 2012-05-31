@@ -25,8 +25,8 @@ from mediacore.web.vcdquality import Vcdquality
 
 from mediacore.web import torrent
 from mediacore.web.torrent.plugins.thepiratebay import Thepiratebay
-from mediacore.web.torrent.plugins.isohunt import Isohunt
 from mediacore.web.torrent.plugins.torrentz import Torrentz
+from mediacore.web.torrent.plugins.isohunt import Isohunt
 
 
 DB_TESTS = 'test'
@@ -432,7 +432,7 @@ class ImdbTest(unittest.TestCase):
         movie_year = 2011
         movie_director = 'Julia Leigh'
 
-        res = self.object.get_info(movie, movie_year)
+        res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
         self.assertEquals(res.get('date'), movie_year)
@@ -443,7 +443,7 @@ class ImdbTest(unittest.TestCase):
         movie_year = 1959
         movie_director = 'Clyde Geronimi'
 
-        res = self.object.get_info(movie, movie_year)
+        res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
         self.assertEquals(res.get('date'), movie_year)
@@ -614,8 +614,8 @@ class TorrentSearchTest(unittest.TestCase):
     def test_plugins_results(self):
         for obj_name, obj in [
                 ('thepiratebay', Thepiratebay()),
-                ('isohunt', Isohunt()),
                 ('torrentz', Torrentz()),
+                ('isohunt', Isohunt()),
                 ]:
 
             res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
@@ -623,7 +623,7 @@ class TorrentSearchTest(unittest.TestCase):
 
             seeds_count = 0
             for r in res:
-                for key in ('title', 'category', 'size', 'date', 'private', 'page'):
+                for key in ('title', 'category', 'size', 'date', 'page'):
                     self.assertTrue(r.get(key) is not None, 'failed to get %s from %s with %s' % (key, r, obj_name))
 
                 self.assertTrue(r.get('url_magnet') or r.get('url_torrent'), 'failed to get torrent url from %s with %s' % (r, obj_name))
@@ -638,8 +638,8 @@ class TorrentSearchTest(unittest.TestCase):
     def test_plugins_results_sort(self):
         for obj_name, obj in [
                 ('thepiratebay', Thepiratebay()),
-                ('isohunt', Isohunt()),
                 ('torrentz', Torrentz()),
+                ('isohunt', Isohunt()),
                 ]:
             for sort in ('age', 'seeds'):
 
@@ -667,7 +667,7 @@ class TorrentSearchTest(unittest.TestCase):
 
         seeds_count = 0
         for r in res:
-            for key in ('net_name', 'title', 'category', 'size', 'private', 'page'):
+            for key in ('net_name', 'title', 'category', 'size', 'page'):
                 self.assertTrue(r.get(key) is not None, 'failed to get %s from %s' % (key, r))
 
             url = r.get('url_magnet') or r.get('url_torrent')
