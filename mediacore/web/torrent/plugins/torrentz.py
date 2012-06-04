@@ -98,7 +98,7 @@ class Torrentz(Base):
         tree = html.fromstring(data)
         links = tree.cssselect('div.download dl a')
         if not links:
-            logger.exception('failed to get mirror urls from %s', url)
+            logger.error('failed to get mirror urls from %s', url)
             return
 
         for link in links:
@@ -152,61 +152,70 @@ class Torrentz(Base):
             elif RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
                 break
 
-            for dl in tree.cssselect('div.results dl'):
-                links = dl.cssselect('a')
-                if not links:
-                    continue
+            for div in tree.cssselect('div.results'):
 
-                log = html.tostring(dl, pretty_print=True)
-
-                result = Result()
-                title = self.get_link_text(html.tostring(links[0]))
-                if not title:
-                    continue
-                result.title = clean(title)
-
+                # Skip sponsored links
                 try:
-                    res = RE_CATEGORIES.search(html.tostring(links[0]))
-                    result.category = self._get_category(res.group(1))
+                    if div.cssselect('h2')[0].text.lower() == 'sponsored links':
+                        continue
                 except Exception:
-                    logger.error('failed to get category info from %s', log)
+                    pass
 
-                if category and category != result.category:
-                    continue
+                for dl in div.cssselect('dl'):
+                    links = dl.cssselect('a')
+                    if not links:
+                        continue
 
-                if dl.cssselect('span.pe'):     # skip 'pending' results (missing date and size)
-                    continue
+                    log = html.tostring(dl, pretty_print=True)
 
-                try:
-                    date = dl.find_class('a')[0][0].get('title')
-                    result.date = self._get_date(date)
-                except Exception:
-                    logger.debug('failed to get date from %s', log)
-                    continue
-                try:
-                    size = dl.find_class('s')[0].text
-                except Exception:
-                    logger.debug('failed to get size from %s', log)
-                    continue
-                if not result.get_size(size):
-                    continue
+                    result = Result()
+                    title = self.get_link_text(html.tostring(links[0]))
+                    if not title:
+                        continue
+                    result.title = clean(title)
 
-                if not result.validate(**kwargs):
-                    continue
+                    try:
+                        res = RE_CATEGORIES.search(html.tostring(links[0]))
+                        result.category = self._get_category(res.group(1))
+                    except Exception:
+                        logger.error('failed to get category info from %s', log)
 
-                try:
-                    seeds = dl.find_class('d')[0].text
-                    result.seeds = int(seeds.replace(',', ''))
-                except Exception:
-                    logger.debug('failed to get seeds from %s', log)
+                    if category and category != result.category:
+                        continue
 
-                # Find torrent url
-                url_info = urljoin(self.URL, links[0].get('href'))
-                result.url_magnet = self._get_torrent_url(query, url_info)
-                if not result.url_magnet:
-                    continue
-                if not result.get_hash():
-                    continue
+                    if dl.cssselect('span.pe'):     # skip 'pending' results (missing date and size)
+                        continue
 
-                result.page = page
-                yield result
+                    try:
+                        date = dl.find_class('a')[0][0].get('title')
+                        result.date = self._get_date(date)
+                    except Exception:
+                        logger.debug('failed to get date from %s', log)
+                        continue
+                    try:
+                        size = dl.find_class('s')[0].text
+                    except Exception:
+                        logger.debug('failed to get size from %s', log)
+                        continue
+                    if not result.get_size(size):
+                        continue
+
+                    if not result.validate(**kwargs):
+                        continue
+
+                    try:
+                        seeds = dl.find_class('d')[0].text
+                        result.seeds = int(seeds.replace(',', ''))
+                    except Exception:
+                        logger.debug('failed to get seeds from %s', log)
+
+                    # Find torrent url
+                    url_info = urljoin(self.URL, links[0].get('href'))
+                    result.url_magnet = self._get_torrent_url(query, url_info)
+                    if not result.url_magnet:
+                        continue
+                    if not result.get_hash():
+                        continue
+
+                    result.page = page
+                    yield result

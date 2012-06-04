@@ -31,7 +31,7 @@ PATTERNS_LANGS = {
     'sw': r'swe([\W_]*subs?(titles)?)?',
     'ar': r'(subs?)?arab(ic)?([\W_]*subs?(titles)?)?',
     }
-LANG_DEFAULT = 'en'     # if no language is found
+LANG_DEFAULT = 'en'     # default language when none found
 
 
 def clean(val, level=0):
