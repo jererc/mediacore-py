@@ -11,8 +11,7 @@ import mechanize
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
 TIMEOUT = 300
 URL_TIMEOUT = 20
-# WEB_EXCEPTIONS = (IncompleteRead, BadStatusLine, URLError, socket.gaierror, socket.error, mechanize.BrowserStateError)
-WEB_EXCEPTIONS = (IncompleteRead, BadStatusLine, URLError, socket.gaierror, socket.error)
+WEB_EXCEPTIONS = (IncompleteRead, BadStatusLine, URLError, socket.gaierror, socket.error, mechanize.BrowserStateError)
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
 
 
