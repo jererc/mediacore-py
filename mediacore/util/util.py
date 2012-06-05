@@ -45,14 +45,6 @@ def randomize(l):
         l_random.append(i)
     return l_random
 
-def get_re_group(regex, s, i=1, default=''):
-    '''Get the group value from a regex search.
-    '''
-    try:
-        return regex.search(s).group(i)
-    except AttributeError:
-        return default
-
 def get_unique_list(seq):
     '''Return the list without duplicates.
     '''
