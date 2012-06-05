@@ -60,7 +60,7 @@ class Tvrage(Base):
                 res = RE_EPISODE_INFO.search(html.tostring(h2))
                 if res:
                     key = 'next_episode' if title == 'next' else 'latest_episode'
-                    info[key] = '%s (%s)' % res.groups()
+                    info[key] = clean('%s (%s)' % res.groups()).lower()
 
         for div in tree.cssselect('div.grid_4'):
             if not div.cssselect('.content_title a'):
@@ -68,7 +68,7 @@ class Tvrage(Base):
 
             links = div.cssselect('a')
             try:
-                info['network'] = links[1].text
+                info['network'] = clean(links[1].text, 1)
             except Exception:
                 info['network'] = None
 
@@ -77,7 +77,7 @@ class Tvrage(Base):
                 if tag.cssselect('img'):
                     res = RE_COUNTRY.search(html.tostring(tag))
                     if res:
-                        info['country'] = res.group(1)
+                        info['country'] = clean(res.group(1), 1)
                 else:
                     res = re.compile(r'>(.*?)<.*?:\s*(.*)$', re.I).search(html.tostring(tag))
                     if res:
@@ -85,10 +85,10 @@ class Tvrage(Base):
                         info_[key.lower()] = val
 
             for key in ('status', 'runtime', 'airs'):
-                info[key] = info_.get(key)
+                info[key] = clean(info_.get(key).lower())
 
-            info['style'] = info_.get('classification', None)
-            info['genre'] = re.split(r'\s*\|\s*', info_.get('genre', '').lower())
+            info['style'] = clean(info_.get('classification', '').lower())
+            info['genre'] = [clean(g, 1) for g in re.split(r'\s*\|\s*', info_.get('genre', ''))]
             res = RE_YEAR.search(info_.get('premiere', ''))
             if res:
                 info['date'] = int(res.group(1))
@@ -106,18 +106,18 @@ class Tvrage(Base):
             info = {}
 
             try:
-                info['network'] = tr[0].cssselect('a')[0].text
+                info['network'] = clean(tr[0].cssselect('a')[0].text, 1)
             except IndexError:
-                info['network'] = tr[0][0][0].text
+                info['network'] = clean(tr[0][0][0].text, 1)
             except Exception:
                 logger.error('failed to get network from %s', log)
 
             try:
                 link = tr[1].cssselect('a')[0]
-                info['name'] = link.text
+                info['name'] = clean(link.text, 1)
                 info['url'] = urljoin(self.URL, link.get('href'))
             except IndexError:
-                info['name'] = tr[1][0][0].text
+                info['name'] = clean(tr[1][0][0].text, 1)
             except Exception:
                 logger.error('failed to get name from %s', log)
                 continue
