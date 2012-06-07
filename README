@@ -1,1 +1,16 @@
 The core library of the media project.
+
+
+Description:
+
+- model:
+    database methods
+
+- util:
+    various tools including titles parsing and search
+
+- web:
+    websites libraries
+
+- web.torrent:
+    torrent search and torrent websites libraries
