@@ -85,7 +85,7 @@ class Tvrage(Base):
                         info_[key.lower()] = val
 
             for key in ('status', 'runtime', 'airs'):
-                info[key] = clean(info_.get(key).lower())
+                info[key] = clean(info_.get(key)).lower()
 
             info['style'] = clean(info_.get('classification', '').lower())
             info['genre'] = [clean(g, 1) for g in re.split(r'\s*\|\s*', info_.get('genre', ''))]
