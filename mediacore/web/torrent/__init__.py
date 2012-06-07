@@ -4,6 +4,8 @@ from urlparse import parse_qs
 from datetime import datetime
 import logging
 
+from systools.system import dotdict
+
 from mediacore.util.title import Title, clean
 from mediacore.util.util import in_range, list_in
 
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 class TorrentError(Exception): pass
 
 
-class Result(dict):
+class Result(dotdict):
     def __init__(self):
         init = {
             'hash': None,
@@ -35,26 +37,6 @@ class Result(dict):
             'processed': False,
             }
         super(Result, self).__init__(init)
-
-    __getattr__ = dict.__getitem__
-
-    def __setattr__(self, attr_name, value):
-        if hasattr(getattr(self.__class__, attr_name, None), '__set__'):
-            return object.__setattr__(self, attr_name, value)
-        else:
-            return self.__setitem__(attr_name, value)
-
-    def __str__(self):
-        return '%s(%s)' % (self.__class__.__name__, dict(self))
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __delattr__(self, attr_name):
-        if attr_name.startswith('_'):
-            return object.__delattr__(self, attr_name)
-        else:
-            return self.__delitem__(attr_name)
 
     def _validate_title(self, re_incl=None, re_excl=None):
         if re_incl:
