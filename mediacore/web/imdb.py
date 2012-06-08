@@ -91,7 +91,7 @@ class Imdb(Base):
 
         return info
 
-    def _get_director_url_info(self, url):
+    def _get_name_url_info(self, url):
         data = self._get_data(url)
         if not data:
             return
@@ -142,6 +142,6 @@ class Imdb(Base):
 
             elif type == 'name':
                 for url in urls:
-                    res = self._get_director_url_info(url)
+                    res = self._get_name_url_info(url)
                     if res:
                         return res
