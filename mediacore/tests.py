@@ -33,7 +33,7 @@ DB_TESTS = 'test'
 GENERIC_QUERY = 'lost'
 
 MOVIE = 'blue velvet'
-MOVIE_DIRECTOR = 'David Lynch'
+MOVIE_DIRECTOR = 'david lynch'
 MOVIE_YEAR = 1986
 
 TVSHOW = 'mad men'
@@ -79,7 +79,13 @@ class TransmissionTest(unittest.TestCase):
         pass
 
     def test_transmission(self):
-        self.assertTrue(Transmission().logged, 'failed to connect to transmission rpc server')
+        transmission = Transmission(
+                host=settings.TRANSMISSION_HOST,
+                port=settings.TRANSMISSION_PORT,
+                username=settings.TRANSMISSION_USERNAME,
+                password=settings.TRANSMISSION_PASSWORD)
+
+        self.assertTrue(transmission.logged, 'failed to connect to transmission rpc server')
 
 
 #
@@ -430,7 +436,7 @@ class ImdbTest(unittest.TestCase):
     def test_get_info_movie_with_year_recent(self):
         movie = 'sleeping beauty'
         movie_year = 2011
-        movie_director = 'Julia Leigh'
+        movie_director = 'julia leigh'
 
         res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
@@ -441,7 +447,7 @@ class ImdbTest(unittest.TestCase):
     def test_get_info_movie_with_year_old(self):
         movie = 'sleeping beauty'
         movie_year = 1959
-        movie_director = 'Clyde Geronimi'
+        movie_director = 'clyde geronimi'
 
         res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
@@ -615,7 +621,7 @@ class TorrentSearchTest(unittest.TestCase):
         for obj_name, obj in [
                 ('thepiratebay', Thepiratebay()),
                 ('torrentz', Torrentz()),
-                ('isohunt', Isohunt()),
+                # ('isohunt', Isohunt()),
                 ]:
 
             res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
@@ -639,7 +645,7 @@ class TorrentSearchTest(unittest.TestCase):
         for obj_name, obj in [
                 ('thepiratebay', Thepiratebay()),
                 ('torrentz', Torrentz()),
-                ('isohunt', Isohunt()),
+                # ('isohunt', Isohunt()),
                 ]:
             for sort in ('age', 'seeds'):
 
