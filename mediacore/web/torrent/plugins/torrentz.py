@@ -5,7 +5,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, Browser, WEB_EXCEPTIONS
+from mediacore.web import Base, Browser
 from mediacore.web.torrent import (parse_magnet_url, Result, TorrentError,
         RE_URL_MAGNET)
 from mediacore.util.title import Title, clean, is_url
@@ -39,60 +39,45 @@ class Torrentz(Base):
         ]
 
     def _sort(self, sort):
-        try:
-            return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
-        except Exception:
-            return self.browser.response()
+        res = self.browser.follow_link(text_regex=RE_URL_SORT[sort])
+        return res or self.browser.response()
 
     def _next(self, page):
-        try:
-            return self.browser.follow_link(
-                    text_regex=re.compile(r'^%s$' % page),
-                    url_regex=re.compile(r'\bp=%s\b' % (page - 1), re.I))
-        except Exception:
-            pass
+        return self.browser.follow_link(
+                text_regex=re.compile(r'^%s$' % page),
+                url_regex=re.compile(r'\bp=%s\b' % (page - 1), re.I))
 
     def _pages(self, query, sort='age', pages_max=1):
         for page in range(1, pages_max + 1):
-            data = None
-            try:
-                if page > 1:
-                    res = self._next(page)
+            if page > 1:
+                res = self._next(page)
+            else:
+                self.browser.clear_history()
+                if is_url(query):
+                    res = self.browser.open(query)
                 else:
-                    self.browser.clear_history()
-                    if is_url(query):
-                        res = self.browser.open(query)
-                    else:
-                        res = self.submit_form(self.URL, index=0, fields={'f': query})
-                        if res and sort != 'seeds':     # default is 'peers'
-                            res = self._sort(sort)
+                    res = self.submit_form(self.url, index=0, fields={'f': query})
+                    if res and sort != 'seeds':     # default is 'peers'
+                        res = self._sort(sort)
 
-                if res:
-                    data = res.get_data()
-            except WEB_EXCEPTIONS:
-                pass
-            except Exception:
-                logger.exception('exception')
+            if res:
+                data = res.get_data()
+                if not data:
+                    if page > 1:
+                        return
+                    raise TorrentError('no data')
 
-            if not data:
-                if page > 1:
-                    return
-                raise TorrentError('no data')
-
-            yield page, data
+                yield page, data
 
     def _mirror_urls(self, url):
         '''Iterate over mirror urls.
         '''
         browser = Browser()
-        try:
-            data = browser.open(url).get_data()
-            if not data:
-                return
-        except WEB_EXCEPTIONS:
+        res = browser.open(url)
+        if not res:
             return
-        except Exception:
-            logger.exception('exception')
+        data = res.get_data()
+        if not data:
             return
 
         tree = html.fromstring(data)
@@ -110,14 +95,12 @@ class Torrentz(Base):
         '''Iterate over torrent urls fetched from the raw html data.
         '''
         browser = Browser()
-        try:
-            browser.open(url)
-            for link in browser.links(url_regex=RE_URL_MAGNET):
-                yield link.absolute_url
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
+        if not browser.open(url):
             logger.debug('failed to get torrent url from %s', url)
+            return
+
+        for link in browser.links(url_regex=RE_URL_MAGNET):
+            yield link.absolute_url
 
     def _get_torrent_url(self, query, url):
         re_q = Title(query).get_search_re(mode='all')
@@ -210,7 +193,7 @@ class Torrentz(Base):
                         logger.debug('failed to get seeds from %s', log)
 
                     # Find torrent url
-                    url_info = urljoin(self.URL, links[0].get('href'))
+                    url_info = urljoin(self.url, links[0].get('href'))
                     result.url_magnet = self._get_torrent_url(query, url_info)
                     if not result.url_magnet:
                         continue

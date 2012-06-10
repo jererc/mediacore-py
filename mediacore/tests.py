@@ -629,6 +629,8 @@ class TorrentSearchTest(unittest.TestCase):
 
             seeds_count = 0
             for r in res:
+                self.assertTrue(r)
+
                 for key in ('title', 'category', 'size', 'date', 'page'):
                     self.assertTrue(r.get(key) is not None, 'failed to get %s from %s with %s' % (key, r, obj_name))
 
@@ -673,6 +675,8 @@ class TorrentSearchTest(unittest.TestCase):
 
         seeds_count = 0
         for r in res:
+            self.assertTrue(r)
+
             for key in ('net_name', 'title', 'category', 'size', 'page'):
                 self.assertTrue(r.get(key) is not None, 'failed to get %s from %s' % (key, r))
 

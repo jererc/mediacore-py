@@ -4,7 +4,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import Title, clean
 
 
@@ -15,6 +15,7 @@ RE_URLS = {
     }
 RE_TITLE = re.compile(r'(.*)\s+\((\d{4})\)$', re.I)
 RE_DATE = re.compile(r'<title>.*?\(.*?(\d{4}).*?\).*?</title>', re.I)
+RE_LIST_DATE = re.compile(r'\b(\d{4})\b', re.I)
 RE_NAMES_EXCL = re.compile(r'(more credit|full cast)', re.I)
 
 
@@ -25,32 +26,21 @@ class Imdb(Base):
     URL = 'http://www.imdb.com'
 
     def _get_urls(self, query, type='title'):
-        try:
-            self.browser.addheaders = [('Accept-Language', 'en-US,en')]
-            if self.submit_form(self.URL, fields={'q': query}):
-                url = self.browser.geturl()
-                if RE_URLS[type].search(url):
-                    return [url]
+        self.browser.addheaders = [('Accept-Language', 'en-US,en')]
+        if self.submit_form(self.url, fields={'q': query}):
+            url = self.browser.geturl()
+            if RE_URLS[type].search(url):
+                return [url]
 
-                return [r.absolute_url for r in self.browser.links(
-                        text_regex=Title(query).get_search_re(),
-                        url_regex=RE_URLS[type])]
-
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
+            return [r.absolute_url for r in self.browser.links(
+                    text_regex=Title(query).get_search_re(),
+                    url_regex=RE_URLS[type])]
 
     def _get_data(self, url):
-        try:
-            self.browser.clear_history()
-            res = self.browser.open(url)
+        self.browser.clear_history()
+        res = self.browser.open(url)
+        if res:
             return res.get_data()
-        except WEB_EXCEPTIONS:
-            return
-        except Exception:
-            logger.exception('exception')
-            return
 
     def _get_title_url_info(self, url):
         data = self._get_data(url)
@@ -73,6 +63,10 @@ class Imdb(Base):
         res = tree.cssselect('div.star-box-giga-star')
         if res:
             info['rating'] = float(clean(res[0].text))
+
+        res = tree.cssselect('.infobar')
+        if res:
+            info['details'] = clean(res[0].text, 1)
 
         tags = tree.cssselect('div.txt-block') + tree.cssselect('div.inline')
         for tag in tags:
@@ -98,10 +92,14 @@ class Imdb(Base):
 
         info = {
             'url': url,
-            'titles': [],
+            'titles_known_for': [],
+            'titles_director': [],
+            'titles_actor': [],
             }
 
         tree = html.fromstring(data)
+
+        # Get "known for" titles
         for div in tree.cssselect('div#knownfor div'):
             links = div.cssselect('a')
             if not links:
@@ -114,11 +112,41 @@ class Imdb(Base):
                 continue
 
             title, date = res.groups()
-            info['titles'].append({
+            info['titles_known_for'].append({
                     'title': clean(title, 1),
                     'date': int(date),
-                    'url': urljoin(self.URL, links[-1].get('href')),
+                    'url': urljoin(self.url, links[-1].get('href')),
                     })
+
+        # Get filmography
+        category = None
+        for div in tree.cssselect('div'):
+            id_ = div.get('id')
+            if id_ == 'filmo-head-Director':
+                category = 'titles_director'
+            elif id_ == 'filmo-head-Actor':
+                category = 'titles_actor'
+            elif id_:
+                category = None
+
+            class_ = div.get('class')
+            if category and class_ and 'filmo-row' in class_:
+                links = div.cssselect('a')
+                if not links:
+                    continue
+                title = {
+                    'title': clean(links[0].text, 1),
+                    'url': urljoin(self.url, links[0].get('href')),
+                    }
+
+                # Get date
+                spans = div.cssselect('span')
+                if spans:
+                    res = RE_LIST_DATE.search(spans[0].text)
+                    if res:
+                        title['date'] = int(res.group(1))
+
+                info[category].append(title)
 
         return info
 

@@ -150,10 +150,9 @@ def _get_net_object(net):
         except Exception:
             logger.error('failed to create %s object', net.capitalize())
             return
-        if not object_.accessible:
-            logger.info('%s is inaccessible', object_.URL)
-            return
-        return object_
+
+        if object_.url:
+            return object_
 
 def get_query(query, category=None):
     '''Get a clean query.

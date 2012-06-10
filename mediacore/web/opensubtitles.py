@@ -4,7 +4,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import Title, clean
 from mediacore.util.media import is_html
 
@@ -30,13 +30,13 @@ class Opensubtitles(Base):
 
     def __init__(self, username, password):
         super(Opensubtitles, self).__init__()
-        if self.accessible:
+        if self.url:
             self.logged = self._login(username, password)
         else:
             self.logged = False
 
     def _login(self, username, password):
-        res = self.submit_form(self.URL, name='loginform', fields={
+        res = self.submit_form(self.url, name='loginform', fields={
                 'user': username,
                 'password': password,
                 })
@@ -49,8 +49,8 @@ class Opensubtitles(Base):
 
     def _get_subtitles(self, url):
         info = []
-        try:
-            self.browser.open(url)
+
+        if self.browser.open(url):
             for link in self.browser.links(url_regex=RE_URL_FILE):
                 res = RE_FILE.search(link.text.decode('utf-8', 'replace'))
                 if res:
@@ -59,14 +59,9 @@ class Opensubtitles(Base):
                         'url': link.absolute_url,
                         })
 
-            if not info:
-                if not RE_NO_RESULT.search(self.browser.response().get_data()):
-                    logger.error('failed to find subtitles files at %s', url)
-
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
+        if not info:
+            if not RE_NO_RESULT.search(self.browser.response().get_data()):
+                logger.error('failed to find subtitles files at %s', url)
 
         return info
 
@@ -76,20 +71,13 @@ class Opensubtitles(Base):
             return int(res.group(1))
 
     def _subtitles_urls(self, re_name, date=None, url=None):
-        data = None
-        try:
-            if not url:
-                url = self.browser.geturl()
-                res = self.browser.response()
-            else:
-                res = self.browser.open(url)
+        if not url:
+            url = self.browser.geturl()
+            res = self.browser.response()
+        else:
+            res = self.browser.open(url)
 
-            data = res.get_data()
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
-
+        data = res.get_data() if res else None
         if not data:
             raise OpensubtitlesError('no data')
 
@@ -109,14 +97,11 @@ class Opensubtitles(Base):
                     if date and date_ and abs(date - date_) > 1:
                         continue
 
-                    url = urljoin(self.URL, links[0].get('href'))
+                    url = urljoin(self.url, links[0].get('href'))
                     for res in self._subtitles_urls(re_name=re_name, date=date, url=url):
                         yield res
 
     def results(self, name, season=None, episode=None, date=None, lang=DEFAULT_LANG):
-        if not self.accessible:
-            return
-
         fields = {
             'MovieName': name,
             'SubLanguageID': [lang],
@@ -147,22 +132,17 @@ class Opensubtitles(Base):
             logger.error('failed to download %s: login required', url)
             return
 
-        try:
-            data = self.browser.open(url).get_data()
-        except WEB_EXCEPTIONS:
-            return
-        except Exception:
-            logger.exception('exception')
-            return
+        res = self.browser.open(url)
+        if res:
+            data = res.get_data()
+            if not data or is_html(data):
+                if RE_MAXIMUM_DOWNLOAD.search(data):
+                    raise DownloadQuotaReached('failed to download %s: maximum download quota reached' % url)
+                elif RE_ERROR.search(data):
+                    raise OpensubtitlesError('failed to download %s: opensubtitles error' % url)
+                logger.error('downloaded invalid subtitles from %s: %s[...])', url, repr(data[:100]))
+                return
 
-        if not data or is_html(data):
-            if RE_MAXIMUM_DOWNLOAD.search(data):
-                raise DownloadQuotaReached('failed to download %s: maximum download quota reached' % url)
-            elif RE_ERROR.search(data):
-                raise OpensubtitlesError('failed to download %s: opensubtitles error' % url)
-            logger.error('downloaded invalid subtitles from %s: %s[...])', url, repr(data[:100]))
-            return
-
-        with open(dst, 'wb') as fd:
-            fd.write(data)
-        return True
+            with open(dst, 'wb') as fd:
+                fd.write(data)
+            return True

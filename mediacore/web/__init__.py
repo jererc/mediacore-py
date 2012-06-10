@@ -11,13 +11,11 @@ import mechanize
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
 TIMEOUT = 300
 URL_TIMEOUT = 20
-WEB_EXCEPTIONS = (IncompleteRead, BadStatusLine, URLError, socket.gaierror, socket.error, mechanize.BrowserStateError)
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
 
 
 socket.setdefaulttimeout(TIMEOUT)
 logger = logging.getLogger(__name__)
-
 
 
 class Browser(mechanize.Browser):
@@ -33,7 +31,19 @@ class Browser(mechanize.Browser):
 
     def _mech_open(self, *args, **kwargs):
         kwargs['timeout'] = URL_TIMEOUT
-        return mechanize.Browser._mech_open(self, *args, **kwargs)
+        try:
+            return mechanize.Browser._mech_open(self, *args, **kwargs)
+        except (IncompleteRead, BadStatusLine, URLError,
+                socket.gaierror, socket.error, mechanize.BrowserStateError), e:
+            logger.debug('request failed for %s, %s: %s', args, kwargs, e)
+        except Exception:
+            logger.exception('exception')
+
+    def follow_link(self, *args, **kwargs):
+        try:
+            return mechanize.Browser.follow_link(self, *args, **kwargs)
+        except mechanize.LinkNotFoundError, e:
+            pass
 
 
 class Base(object):
@@ -41,29 +51,27 @@ class Base(object):
     '''
     def __init__(self, debug_http=False):
         self.browser = Browser(debug_http=debug_http)
-
-        if isinstance(self.URL, (tuple, list)):
-            urls = self.URL
+        self.url = self._get_url()
+        if self.url:
+            self.accessible = True
         else:
-            urls = [self.URL]
+            self.accessible = False
+            logger.error('failed to connect to %s', self.URL)
 
-        for self.URL in urls:
-            self.accessible = self._is_accessible()
-            if self.accessible:
-                break
+    def _get_url(self):
+        if not isinstance(self.URL, (tuple, list)):
+            self.URL = [self.URL]
 
-    def _is_accessible(self):
-        try:
-            self.browser.open(self.URL)
-            url = self.browser.geturl()
-            if get_website_name(url) == get_website_name(self.URL):
+        for url in self.URL:
+            if self._is_accessible(url):
+                return url
+
+    def _is_accessible(self, url):
+        if self.browser.open(url):
+            url_ = self.browser.geturl()
+            if get_website_name(url_) == get_website_name(url):
                 return True
-            logger.info('%s is redirected to %s', self.URL, url)
-        except WEB_EXCEPTIONS, e:
-            logger.error('%s is not accessible: %s', self.URL, e)
-        except Exception:
-            logger.exception('exception')
-        return False
+            logger.info('%s is redirected to %s', url, url_)
 
     def get_link_text(self, val):
         res = RE_LINK_TITLE.search(val)
@@ -72,38 +80,35 @@ class Base(object):
         logger.error('failed to get text from link "%s"', val)
 
     def submit_form(self, url=None, name=None, index=None, fields=None):
-        try:
-            if url:
-                self.browser.open(url)
-
-            # for form in self.browser.forms():
-            #     print form.attrs
-
-            if name:
-                form_info = {'name': name}
-            elif index:
-                form_info = {'nr': index}
-            else:
-                form_info = {'nr': 0}
-
-            try:
-                self.browser.select_form(**form_info)
-            except mechanize.FormNotFoundError:
-                logger.error('failed to find form %s at %s', form_info, url or self.browser.geturl())
+        if url:
+            if not self.browser.open(url):
                 return
+        elif not self.url:
+            return
 
-            for key, val in fields.items():
-                try:
-                    self.browser[key] = val
-                except Exception:
-                    logger.error('failed to set form field "%s" at %s', key, url or self.browser.geturl())
+        # for form in self.browser.forms():
+        #     print form.attrs
 
-            return self.browser.submit()
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
+        if name:
+            form_info = {'name': name}
+        elif index:
+            form_info = {'nr': index}
+        else:
+            form_info = {'nr': 0}
 
+        try:
+            self.browser.select_form(**form_info)
+        except mechanize.FormNotFoundError:
+            logger.error('failed to find form %s at %s', form_info, url or self.browser.geturl())
+            return
+
+        for key, val in fields.items():
+            try:
+                self.browser[key] = val
+            except Exception:
+                logger.error('failed to set form field "%s" at %s', key, url or self.browser.geturl())
+
+        return self.browser.submit()
 
 def get_website_name(url):
     name = urlparse(url.lower()).netloc

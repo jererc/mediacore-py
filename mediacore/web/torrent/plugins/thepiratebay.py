@@ -4,7 +4,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.web.torrent import Result, TorrentError
 from mediacore.util.title import clean, is_url
 
@@ -39,54 +39,42 @@ class Thepiratebay(Base):
         ]
 
     def _sort(self, sort):
-        try:
-            return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
-        except Exception:
-            return self.browser.response()
+        res = self.browser.follow_link(text_regex=RE_URL_SORT[sort])
+        return res or self.browser.response()
 
     def _next(self, page):
-        try:
-            return self.browser.follow_link(
-                    text_regex=re.compile(r'^\D*%s\D*$' % page),
-                    url_regex=re.compile(r'/%s/' % (page - 1), re.I))
-        except Exception:
-            pass
+        return self.browser.follow_link(
+                text_regex=re.compile(r'^\D*%s\D*$' % page),
+                url_regex=re.compile(r'/%s/' % (page - 1), re.I))
 
     def _pages(self, query, category=None, sort='age', pages_max=1):
         for page in range(1, pages_max + 1):
-            data = None
-            try:
-                if page > 1:
-                    res = self._next(page)
+            if page > 1:
+                res = self._next(page)
+            else:
+                self.browser.clear_history()
+                if is_url(query):
+                    res = self.browser.open(query)
                 else:
-                    self.browser.clear_history()
-                    if is_url(query):
-                        res = self.browser.open(query)
-                    else:
-                        fields = {'q': query}
-                        if category:
-                            val = CAT_DEF.get(category.lower())
-                            if val:
-                                fields[val] = ['on']
-                        res = self.submit_form(self.URL, fields=fields)
-                        if res:
-                            res = self._sort(sort)
+                    fields = {'q': query}
+                    if category:
+                        val = CAT_DEF.get(category.lower())
+                        if val:
+                            fields[val] = ['on']
+                    res = self.submit_form(self.url, fields=fields)
+                    if res:
+                        res = self._sort(sort)
 
-                if res:
-                    data = res.get_data()
-            except WEB_EXCEPTIONS:
-                pass
-            except Exception:
-                logger.exception('exception')
+            if res:
+                data = res.get_data()
+                if not data:
+                    if page > 1:
+                        return
+                    raise TorrentError('no data')
+                elif RE_OVERLOAD.search(data):
+                    raise TorrentError('overload')
 
-            if not data:
-                if page > 1:
-                    return
-                raise TorrentError('no data')
-            elif RE_OVERLOAD.search(data):
-                raise TorrentError('overload')
-
-            yield page, data
+                yield page, data
 
     def _get_date(self, val):
         d, t = RE_DATE.search(val).group(1, 2)

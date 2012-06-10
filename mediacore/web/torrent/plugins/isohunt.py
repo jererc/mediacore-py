@@ -5,7 +5,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, Browser, WEB_EXCEPTIONS
+from mediacore.web import Base, Browser
 from mediacore.web.torrent import Result, TorrentError
 from mediacore.util.title import clean, is_url
 
@@ -54,59 +54,48 @@ class Isohunt(Base):
         if not res:
             logger.error('failed to sort results by %s', sort)
         else:
-            url = urljoin(self.URL, res.group(1))
-            try:
-                response = self.browser.open(url)
-            except Exception, e:
-                logger.error('failed to sort results by %s: %s', sort, e)
+            url = urljoin(self.url, res.group(1))
+            response = self.browser.open(url)
+            if not response:
+                logger.error('failed to sort results by %s', sort)
             self.sorted = sort
+
         return response
 
     def _next(self, page):
-        try:
-            return self.browser.follow_link(url_regex=re.compile(r'\bihp=%s\b' % page, re.I))
-        except Exception:
-            pass
+        return self.browser.follow_link(url_regex=re.compile(r'\bihp=%s\b' % page, re.I))
 
     def _pages(self, query, category=None, sort='age', pages_max=1):
         for page in range(1, pages_max + 1):
-            data = None
-            try:
-                if page > 1:
-                    res = self._next(page)
+            if page > 1:
+                res = self._next(page)
+            else:
+                self.browser.clear_history()
+                if is_url(query):
+                    res = self.browser.open(query)
                 else:
-                    self.browser.clear_history()
-                    if is_url(query):
-                        res = self.browser.open(query)
-                    else:
-                        res = self.submit_form(self.URL, name='ihSearch', fields={'ihq': query})
-                        if res:
-                            res = self._sort(sort)
+                    res = self.submit_form(self.url, name='ihSearch', fields={'ihq': query})
+                    if res:
+                        res = self._sort(sort)
 
-                if res:
-                    data = res.get_data()
-            except WEB_EXCEPTIONS:
-                pass
-            except Exception:
-                logger.exception('exception')
+            if res:
+                data = res.get_data()
+                if not data:
+                    if page > 1:
+                        return
+                    raise TorrentError('no data')
 
-            if not data:
-                if page > 1:
-                    return
-                raise TorrentError('no data')
-
-            yield page, data
+                yield page, data
 
     def _get_torrent_url(self, url):
         browser = Browser()
-        try:
-            browser.open(url)
-            for link in browser.links(url_regex=RE_URL_TORRENT):
-                return link.absolute_url
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception, e:
-            logger.exception('failed to get torrent url from %s: %s', url, e)
+        res = browser.open(url)
+        if not res:
+            logger.exception('failed to get torrent url from %s', url)
+            return
+
+        for link in browser.links(url_regex=RE_URL_TORRENT):
+            return link.absolute_url
 
     def _get_date(self, val):
         n, u = RE_DATE.search(val).groups()
@@ -176,7 +165,7 @@ class Isohunt(Base):
                     pass
 
                 # Find torrent url
-                url_info = urljoin(self.URL, links[-1].get('href'))
+                url_info = urljoin(self.url, links[-1].get('href'))
                 result.url_torrent = self._get_torrent_url(url_info)
                 if not result.url_torrent:
                     logger.error('failed to get torrent url from %s', url_info)

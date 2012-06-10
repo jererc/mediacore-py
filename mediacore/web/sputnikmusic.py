@@ -5,7 +5,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import Title, is_url, clean
 
 
@@ -14,7 +14,7 @@ URL_REVIEWS_CONTRIB = 'http://www.sputnikmusic.com/contribreviews.php'
 RE_URL_BAND = re.compile(r'/bands/', re.I)
 RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
-RE_SEARCH_RESULTS = re.compile(r'search\sresults:', re.I)
+RE_SUGGESTIONS = re.compile(r'search\sresults:', re.I)
 
 
 logger = logging.getLogger(__name__)
@@ -24,29 +24,26 @@ class Sputnikmusic(Base):
     URL = 'http://www.sputnikmusic.com/'
 
     def _get_data(self, query):
-        if not self.accessible:
-            return
-        try:
-            if is_url(query):
-                data = self.browser.open(query).get_data()
-            else:
-                res = self.submit_form(self.URL, fields={'search_text': query})
-                if not res:
-                    return
+        if is_url(query):
+            res = self.browser.open(query)
+            if res:
+                return res.get_data()
 
-                # Check results
-                data = res.get_data()
-                if RE_SEARCH_RESULTS.search(data):
-                    re_name = Title(query).get_search_re()
-                    for link in self.browser.links(text_regex=re_name):
-                        return self.browser.open(link.absolute_url).get_data()
+        else:
+            res = self.submit_form(self.url, fields={'search_text': query})
+            if not res:
+                return
+            data = res.get_data()
+            if not data:
+                return
+            if not RE_SUGGESTIONS.search(data):
+                return data
 
-            return data
-
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
+            re_name = Title(query).get_search_re()
+            for link in self.browser.links(text_regex=re_name):
+                res = self.browser.open(link.absolute_url)
+                if res:
+                    return res.get_data()
 
     def get_info(self, artist):
         data = self._get_data(artist)
@@ -94,7 +91,7 @@ class Sputnikmusic(Base):
                     logger.error('failed to get album name from %s', log)
                     continue
                 try:
-                    info_album['url'] = urljoin(self.URL, tds[0][0].get('href'))
+                    info_album['url'] = urljoin(self.url, tds[0][0].get('href'))
                 except Exception:
                     logger.error('failed to get album url from %s', log)
                     continue
@@ -109,7 +106,7 @@ class Sputnikmusic(Base):
                 except Exception:
                     info_album['date'] = None
                 try:
-                    info_album['url_cover'] = urljoin(self.URL, tds[0][0][0].get('src'))
+                    info_album['url_cover'] = urljoin(self.url, tds[0][0][0].get('src'))
                 except Exception:
                     logger.error('failed to get cover url from %s', log)
 
@@ -129,7 +126,7 @@ class Sputnikmusic(Base):
         for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):
             data = self._get_data(url)
             if not data:
-                logger.error('failed to get data from %s' % url)
+                logger.error('failed to get data from %s', url)
                 continue
 
             tree = html.fromstring(data)
@@ -159,11 +156,11 @@ class Sputnikmusic(Base):
                     logger.debug('failed to get date from %s', log)
                     continue
                 try:
-                    info['url_review'] = urljoin(self.URL, tr[1][0].get('href'))
+                    info['url_review'] = urljoin(self.url, tr[1][0].get('href'))
                 except Exception:
                     logger.error('failed to get review url from %s', log)
                 try:
-                    info['url_thumbnail'] = urljoin(self.URL, tr[0][0][0].get('src'))
+                    info['url_thumbnail'] = urljoin(self.url, tr[0][0][0].get('src'))
                 except Exception:
                     logger.error('failed to get thumbnail url from %s', log)
 

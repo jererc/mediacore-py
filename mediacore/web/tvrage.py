@@ -4,7 +4,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import Title, clean, is_url
 
 
@@ -24,25 +24,22 @@ class Tvrage(Base):
     URL = 'http://www.tvrage.com'
 
     def _get_data(self, query):
-        try:
-            self.browser.clear_history()
-            if is_url(query):
-                return self.browser.open(query).get_data()
-            else:
-                res = self.submit_form(self.URL, fields={'search': query})
-                if not res:
-                    return
+        self.browser.clear_history()
+        if is_url(query):
+            res = self.browser.open(query)
+            if res:
+                return res.get_data()
+        else:
+            res = self.submit_form(self.url, fields={'search': query})
+            if not res:
+                return
 
-                re_q = Title(query).get_search_re()
-                for link in self.browser.links(url_regex=RE_URL_MAIN):
-                    if re_q.search(clean(link.text)):
-                        res = self.browser.open(link.absolute_url)
+            re_q = Title(query).get_search_re()
+            for link in self.browser.links(url_regex=RE_URL_MAIN):
+                if re_q.search(clean(link.text)):
+                    res = self.browser.open(link.absolute_url)
+                    if res:
                         return res.get_data()
-
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
 
     def get_info(self, query):
         data = self._get_data(query)
@@ -115,7 +112,7 @@ class Tvrage(Base):
             try:
                 link = tr[1].cssselect('a')[0]
                 info['name'] = clean(link.text, 1)
-                info['url'] = urljoin(self.URL, link.get('href'))
+                info['url'] = urljoin(self.url, link.get('href'))
             except IndexError:
                 info['name'] = clean(tr[1][0][0].text, 1)
             except Exception:

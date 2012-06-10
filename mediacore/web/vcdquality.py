@@ -5,7 +5,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import clean
 
 
@@ -15,41 +15,31 @@ logger = logging.getLogger(__name__)
 class Vcdquality(Base):
     URL = 'http://www.vcdq.com'
 
-    def _get_url(self):
+    def _get_releases_url(self):
         year = datetime.utcnow().year
         date_str = '%s_%s' % (year - 1, year)
-        return urljoin(self.URL, 'browse/1/0/3_2/91282_19_2_2_4_9_8_3/0/%s/0/0/0/0' % date_str)
+        return urljoin(self.url, 'browse/1/0/3_2/91282_19_2_2_4_9_8_3/0/%s/0/0/0/0' % date_str)
 
     def _next(self, page):
-        try:
-            return self.browser.follow_link(
-                    text_regex=re.compile(r'^%s$' % page),
-                    url_regex=re.compile(r'browse'))
-        except Exception:
-            pass
+        return self.browser.follow_link(
+                text_regex=re.compile(r'^%s$' % page),
+                url_regex=re.compile(r'browse'))
 
-    def _get_data(self, page):
-        try:
+    def _pages(self, pages_max=1):
+        for page in range(1, pages_max + 1):
             if page > 1:
                 res = self._next(page)
             else:
                 self.browser.clear_history()
-                res = self.browser.open(self._get_url())
+                res = self.browser.open(self._get_releases_url())
 
             if res:
-                return res.get_data()
-
-        except WEB_EXCEPTIONS:
-            pass
-        except Exception:
-            logger.exception('exception')
+                data = res.get_data()
+                if data:
+                    yield page, data
 
     def results(self, pages_max=1):
-        for page in range(1, pages_max + 1):
-            data = self._get_data(page)
-            if not data:
-                return
-
+        for page, data in self._pages(pages_max):
             tree = html.fromstring(data)
             for tr in tree.cssselect('tbody:not([id]) tr'):
                 try:

@@ -3,7 +3,7 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base, WEB_EXCEPTIONS
+from mediacore.web import Base
 from mediacore.util.title import clean
 
 
@@ -18,33 +18,23 @@ class Google(Base):
     URL = 'http://www.google.com'
 
     def _next(self, page):
-        try:
-            return self.browser.follow_link(
-                text_regex=re.compile(r'^\D*%s\D*$' % page),
-                url_regex=RE_URL_SEARCH)
-        except Exception:
-            pass
+        return self.browser.follow_link(
+            text_regex=re.compile(r'^\D*%s\D*$' % page),
+            url_regex=RE_URL_SEARCH)
 
     def _pages(self, query, pages_max=1):
         for page in range(1, pages_max + 1):
-            data = None
-            try:
-                if page > 1:
-                    res = self._next(page)
-                else:
-                    self.browser.clear_history()
-                    res = self.submit_form(self.URL, fields={'q': query})
+            if page > 1:
+                res = self._next(page)
+            else:
+                self.browser.clear_history()
+                res = self.submit_form(self.url, fields={'q': query})
 
-                if res:
-                    data = res.get_data()
-            except WEB_EXCEPTIONS:
-                pass
-            except Exception:
-                logger.exception('exception')
-
-            if not data:
-                return
-            yield page, data
+            if res:
+                data = res.get_data()
+                if not data:
+                    return
+                yield page, data
 
     def results(self, query, pages_max=1):
         for page, data in self._pages(query, pages_max):
