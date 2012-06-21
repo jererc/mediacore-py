@@ -177,7 +177,7 @@ def results(query, **kwargs):
             continue
 
         query_ = get_query(query, kwargs.get('category'))
-        if not query_:
+        if query and not query_:
             logger.error('failed to process query "%s"', query)
             continue
 
