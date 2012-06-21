@@ -19,7 +19,7 @@ from mediacore.util.mediainfo import get_info
 RE_TVSHOW_CHECK = re.compile(r'[\W_]s\d{2}e\d{2}[\W_]', re.I)
 RE_SPECIAL_CHAR = re.compile(r'[^\w_\-\(\)\[\]\{\}\.]')
 RE_SUB_FILENAME = re.compile(r'\((.*)\)$')
-RE_SUB_DIFF = re.compile(r'\b(cd[\W_]*\d+|(720|1080)[pi]|parodie)\b', re.I)
+RE_SUB_DIFF = re.compile(r'\b(cd[\W_]*\d+|(480|720|1080)[pi]|parodie)\b', re.I)
 RE_EXTRACT_SET = re.compile(r'^\.r?\d+$', re.I)
 RE_EXTRACT_ERRORS = {
     '.rar': re.compile(r'\bCorrupt\sfile\sor\swrong\spassword\b', re.I),
