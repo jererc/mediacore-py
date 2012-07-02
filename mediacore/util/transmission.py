@@ -78,16 +78,21 @@ class Transmission(object):
         except Exception, e:
             if RE_DUPLICATE.search(e.message):
                 raise TorrentExists('url %s is already queued' % url)
-            raise TransmissionError('failed to add url %s: %s' % (url, e))
+            raise TransmissionError('failed to add url %s: %s' % (repr(url), e))
 
         if os.path.isfile(url) and delete_torrent:
             mmedia.remove_file(url)
 
         try:
             id = res.items()[0][0]
-            return self.get(id).hash
         except Exception, e:
-            logger.error('failed to get torrent hash for url %s', url)
+            logger.error('failed to get torrent id from %s', res)
+            return
+        torrent = self.get(id)
+        if not torrent:
+            logger.error('failed to get torrent from transmission id %s', id)
+            return
+        return torrent.hash
 
     def remove(self, id, delete_data=False):
         '''Remove a torrent.
