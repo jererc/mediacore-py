@@ -42,7 +42,7 @@ class Browser(mechanize.Browser):
     def follow_link(self, *args, **kwargs):
         try:
             return mechanize.Browser.follow_link(self, *args, **kwargs)
-        except mechanize.LinkNotFoundError, e:
+        except mechanize.LinkNotFoundError:
             pass
 
 

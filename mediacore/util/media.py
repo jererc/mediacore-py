@@ -2,7 +2,7 @@ import os
 import re
 from datetime import datetime
 import shutil
-import stat
+from stat import S_IMODE
 import mimetypes
 import logging
 
@@ -184,7 +184,7 @@ def get_type(file):
 def get_permissions(file):
     '''Get octal file permissions.
     '''
-    return oct(stat.S_IMODE(os.stat(file).st_mode))
+    return oct(S_IMODE(os.stat(file).st_mode))
 
 def get_unique(file):
     '''Get a unique file or directory name.
