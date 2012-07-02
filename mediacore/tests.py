@@ -390,6 +390,42 @@ class ModelTest(unittest.TestCase):
         self.assertEquals(res[0], self.doc)
 
 
+@unittest.skipIf(not db_ok, 'not connected to the right database')
+class ModelSearchTest(unittest.TestCase):
+
+    def setUp(self):
+        Search().drop()
+
+    def test_add_search(self):
+        q = 'query'
+        category = 'category'
+
+        Search().add(q, category=category)
+
+        res = Search().find_one()
+        self.assertEqual(res['q'], q)
+        self.assertEqual(res['category'], category)
+        self.assertEqual(res['mode'], 'once')
+        self.assertEqual(res['langs'], [])
+
+    def test_add_search_extra_parameters(self):
+        q = 'query'
+        category = 'category'
+        url_info = 'http://url.info'
+        release_id = '1' * 24
+
+        Search().add(q, category=category, url_info=url_info,
+                release_id=release_id)
+
+        res = Search().find_one()
+        self.assertEqual(res['q'], q)
+        self.assertEqual(res['category'], category)
+        self.assertEqual(res['mode'], 'once')
+        self.assertEqual(res['langs'], [])
+        self.assertEqual(res['url_info'], url_info)
+        self.assertEqual(res['release_id'], release_id)
+
+
 #
 # Web
 #
