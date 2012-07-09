@@ -412,7 +412,7 @@ class Audio(File):
         '''
         base = self.file
         info = self.get_file_info()
-        if info['album']:
+        if info['display_name']:
             dir = base
             for i in range(2):
                 dir = os.path.dirname(dir)
@@ -422,9 +422,10 @@ class Audio(File):
                 # Check if directory files are related
                 for file in files(dir, types=self.type):
                     info_ = file.get_file_info()
-                    if info_['album'] and info_['album'] != info['album']:
+                    if info_['display_name'] and info_['display_name'] != info['display_name']:
                         return base
                 base = dir
+
         return base
 
 
