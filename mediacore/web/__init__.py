@@ -79,15 +79,16 @@ class Base(object):
             return res.group(1)
         logger.error('failed to get text from link "%s"', val)
 
-    def submit_form(self, url=None, name=None, index=None, fields=None):
+    def submit_form(self, url=None, name=None, index=None, fields=None, debug=False):
         if url:
             if not self.browser.open(url):
                 return
         elif not self.url:
             return
 
-        # for form in self.browser.forms():
-        #     print form.attrs
+        if debug:
+            for form in self.browser.forms():
+                logger.info('form: %s' % form.attrs)
 
         if name:
             form_info = {'name': name}
@@ -106,7 +107,7 @@ class Base(object):
             try:
                 self.browser[key] = val
             except Exception:
-                logger.error('failed to set form field "%s" at %s', key, url or self.browser.geturl())
+                logger.error('failed to set form field "%s" for form %s', key, self.browser)
 
         return self.browser.submit()
 
