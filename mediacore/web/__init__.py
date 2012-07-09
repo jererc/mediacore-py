@@ -34,7 +34,8 @@ class Browser(mechanize.Browser):
         try:
             return mechanize.Browser._mech_open(self, *args, **kwargs)
         except (IncompleteRead, BadStatusLine, URLError,
-                socket.gaierror, socket.error, mechanize.BrowserStateError), e:
+                socket.gaierror, socket.error, socket.timeout,
+                mechanize.BrowserStateError), e:
             logger.debug('request failed for %s, %s: %s', args, kwargs, e)
         except Exception:
             logger.exception('exception')
