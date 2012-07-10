@@ -60,7 +60,7 @@ class Sputnikmusic(Base):
 
         tree = html.fromstring(data)
 
-        band_info = tree.cssselect('p.bandbox + table td')
+        band_info = tree.cssselect('table.bandbox td')
         try:
             info['name'] = clean(band_info[0][0][0].text, 1)
         except Exception:
