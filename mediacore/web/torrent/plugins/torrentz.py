@@ -103,7 +103,7 @@ class Torrentz(Base):
             yield link.absolute_url
 
     def _get_torrent_url(self, query, url):
-        re_q = Title(query).get_search_re(mode='all')
+        re_q = Title(query).get_search_re(mode='__lazy__')
 
         for mirror_url in self._mirror_urls(url):
             for torrent_url in self._torrent_urls(mirror_url):

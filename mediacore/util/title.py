@@ -14,6 +14,8 @@ RE_EPISODE_LIST = [
     ]
 RE_AUDIO = re.compile(r'^((.*?)[\W_]*-[\W_]*(.*)|(\d{2,3})[\W_]*-[\W_]*(.*?)[\W_]*-[\W_]*(.*))$', re.I)
 LIST_JUNK_SEARCH = ['the', 'a', 'and', 's', 'le', 'la', 'un', 'une', 'us']
+PATTERN_SEP_EXTRA = '([\(\[][^\)\]]*[\)\]])'
+PATTERN_SEP_JUNK = '(%s)' % '|'.join(LIST_JUNK_SEARCH)
 PATTERN_EXTRA = r'[\(\[\{].*?[\)\]\}]'
 PATTERN_RIP_PRE = r'\d*[\W_]*(cd|dvd)[\W_]*\d*|pal|ntsc|(480|576|720|1080)[pi]'
 PATTERN_RIP_MOVIES = r'blu[\W_]*ray|md|screener|ts|teaser|cam|r5|(bd|br|dvd|web|vod|dtt)rip|dvd[\W_]*(r|rip|scr)?|dvd\w*|(bd|br)[\W_]*scr'
@@ -32,6 +34,7 @@ PATTERNS_LANGS = {
     'ar': r'(subs?)?arab(ic)?([\W_]*subs?(titles)?)?',
     }
 LANG_DEFAULT = 'en'     # default language when none found
+
 
 
 def clean(val, level=0):
@@ -272,61 +275,8 @@ class Title(object):
             res[attr] = getattr(self, attr)
         return str(res)
 
-    def get_search_re(self, mode=None):
-        '''Get a search regex from a query.
-        '''
-        title = self.title
-        if not mode:
-            if self.episode:
-                mode = 'tv'
-                title = '%s %s %s' % (self.name, self.season, self.episode)
-            else:
-                mode = 'word'
-
-        # Get words separators patterns parts
-        j1 = '([\(\[][^\)\]]*[\)\]])'
-        j2 = '(%s)' % '|'.join(LIST_JUNK_SEARCH)
-
-        # Get words separators patterns
-        if mode == 'all':
-            p_begin = r'^.*'
-            p_inside = r'.*'
-            p_end = r'.*$'
-        else:
-            p_begin = r'^[\W_]*%s*[\W_]*(%s[\W_]+)*' % (j1, j2)
-            p_inside = r'[\W_s]*%s*[\W_]*([\W_](%s[\W_]+)*)*' % (j1, j2)
-            p_end = r'[\W_s]*%s*[\W_]*([\W_]%s)*[\W_]*$' % (j1, j2)
-
-            if mode == 'tv':
-                p_end = r'(([\W_s]*%s*[\W_]*.*$)|$)' % j1
-            elif mode == 'word2':
-                p_end = r'([\W_].*$|$)'
-            elif mode == 'word3':
-                p_begin = r'(^|^.*[\W_])'
-                p_end = r'([\W_].*$|$)'
-
-        words = [w for w in re.split(r'[\W_]+', title.lower()) if not w in LIST_JUNK_SEARCH]
-        pattern = p_inside.join(words)
-        pattern = re.sub(r's(%s|$)' % re.escape(p_inside), r"'?s?\1", pattern)
-
-        if self.episode:
-            s_prev, e_prev = self.get_previous_episode()
-            if self.season:
-                pattern = re.sub(r'(0?%s)%s(%s)' % (self.season, re.escape(p_inside), self.episode),
-                        r'([^1-9]{,3}%s\D*%s\D[^1-9]*\1?\D*\2|[^1-9]{,3}\1\D*\2)(\D|$)' % (s_prev, e_prev),
-                        pattern)
-            else:
-                pattern = re.sub(r'(%s)(%s)' % (re.escape(p_inside), self.episode),
-                        r'\1([^1-9]{,3}%s[^1-9]{,3}\2|[^1-9]{,3}\2)(\D|$)' % e_prev,
-                        pattern)
-
-        pattern = r'%s%s%s' % (p_begin, pattern, p_end)
-        return re.compile(pattern, re.I)
-
-    def get_previous_episode(self):
-        '''Get the previous episode for for double episodes.
-
-        :return: )
+    def _get_prev_episode(self):
+        '''Get the previous season and episode for double episodes.
         '''
         season = self.season
         episode = self.episode
@@ -343,3 +293,52 @@ class Title(object):
         episode = str(episode).zfill(len(self.episode))
         season = str(season).zfill(len(self.season))
         return season, episode
+
+    def get_search_re(self, mode=None):
+        '''Get a search regex from a query.
+
+        :param mode: search mode:
+            - None: exact match
+            - __all__: match phrase and other words
+            - __lazy__: match all words without boundaries
+
+        :return: compiled regex
+        '''
+        if self.episode:
+            title = '%s %s%s' % (self.name, '%s ' % self.season if self.season else '', self.episode)
+        else:
+            title = self.title
+
+        # Get words separators patterns
+        if mode == '__lazy__':
+            p_begin = r'^.*'
+            p_inside = r'.*'
+            p_end = r'.*$'
+        elif mode == '__all__':
+            p_begin = r'(^|^.*[\W_])'
+            p_inside = r'[\W_s]*%s*[\W_]*([\W_](%s[\W_]+)*)*' % (PATTERN_SEP_EXTRA, PATTERN_SEP_JUNK)
+            p_end = r'([\W_].*$|$)'
+        else:
+            p_begin = r'^[\W_]*%s*[\W_]*(%s[\W_]+)*' % (PATTERN_SEP_EXTRA, PATTERN_SEP_JUNK)
+            p_inside = r'[\W_s]*%s*[\W_]*([\W_](%s[\W_]+)*)*' % (PATTERN_SEP_EXTRA, PATTERN_SEP_JUNK)
+            if self.episode:
+                p_end = r'([\W_].*$|$)'
+            else:
+                p_end = r'[\W_s]*%s*[\W_]*([\W_]%s)*[\W_]*$' % (PATTERN_SEP_EXTRA, PATTERN_SEP_JUNK)
+
+        words = [w for w in re.split(r'[\W_]+', title.lower()) if w not in LIST_JUNK_SEARCH]
+        pattern = p_inside.join(words)
+        pattern = re.sub(r's(%s|$)' % re.escape(p_inside), r"'?s?\1", pattern)
+
+        if self.episode:
+            s_prev, e_prev = self._get_prev_episode()
+            if self.season:
+                pattern = re.sub(r'(0?%s)%s(%s)' % (self.season, re.escape(p_inside), self.episode),
+                        r'([^1-9]{,3}%s\D*%s\D[^1-9]*\1?\D*\2|[^1-9]{,3}\1\D*\2)' % (s_prev, e_prev),
+                        pattern)
+            else:
+                pattern = re.sub(r'(%s)(%s)' % (re.escape(p_inside), self.episode),
+                        r'\1([^1-9]{,3}%s[^1-9]{,3}\2|[^1-9]{,3}\2)' % e_prev,
+                        pattern)
+
+        return re.compile(r'%s%s%s' % (p_begin, pattern, p_end), re.I)

@@ -60,11 +60,16 @@ class Sputnikmusic(Base):
 
         tree = html.fromstring(data)
 
+        # Get band info
         band_info = tree.cssselect('table.bandbox td')
         try:
             info['name'] = clean(band_info[0][0][0].text, 1)
         except Exception:
             logger.error('failed to get band name from %s', url_band)
+        try:
+            info['genre'] = [clean(t.text, 1) for t in band_info[0][1] if t.text]
+        except Exception:
+            logger.error('failed to get band genre from %s', url_band)
 
         # Get similar bands
         for tag in tree.cssselect('p.alt2'):
@@ -126,6 +131,7 @@ class Sputnikmusic(Base):
             re_album = Title(album).get_search_re()
             for res in info['albums']:
                 if re_album.search(res['name']):
+                    res['genre'] = info.get('genre')
                     return res
 
     def get_query_info(self, query):

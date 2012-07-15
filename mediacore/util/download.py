@@ -204,7 +204,7 @@ def check_download_file(file, finished_file=None, finished=False):
 
         elif info.get('bitrate'):
             if not 300 < info['bitrate'] / 1024 < 10000:
-                logger.info('invalid bitrate "%s" for %s', info['video_bitrate'], file.file)
+                logger.info('invalid bitrate "%s" for %s', info['bitrate'], file.file)
                 return False
 
         elif finished:

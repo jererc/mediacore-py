@@ -107,17 +107,18 @@ class Opensubtitles(Base):
             'SubLanguageID': [lang],
             }
         if season:
-            fields['Season'] = season
+            fields['Season'] = str(season)
         if episode:
-            fields['Episode'] = episode
+            fields['Episode'] = str(episode)
         if not self.submit_form(name='searchform', fields=fields):
             return
 
         if season and episode:
+            re_name = Title(name).get_search_re(mode='__all__')
             re_sub = re.compile(r'[^1-9]%s\D*%s\D' % (season, episode), re.I)
         else:
+            re_name = Title(name).get_search_re()
             re_sub = None
-        re_name = Title(name).get_search_re('word3' if season and episode else None)
 
         for res in self._subtitles_urls(re_name, date=date):
             for result in self._get_subtitles(res):

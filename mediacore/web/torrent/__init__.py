@@ -38,19 +38,21 @@ class Result(dotdict):
             }
         super(Result, self).__init__(init)
 
-    def _validate_title(self, re_incl=None, re_excl=None):
+    def _validate_title(self, re_incl=None, re_excl=None, clean=True):
+        title = Title(self.title).full_name if clean else self.title
+
         if re_incl:
             if not isinstance(re_incl, (tuple, list)):
                 re_incl = [re_incl]
             for re_ in re_incl:
-                if re_ and not re_.search(self.title):
+                if re_ and not re_.search(title):
                     return False
 
         if re_excl:
             if not isinstance(re_excl, (tuple, list)):
                 re_excl = [re_excl]
             for re_ in re_excl:
-                if re_ and re_.search(self.title):
+                if re_ and re_.search(title):
                     return False
 
         return True
@@ -69,10 +71,14 @@ class Result(dotdict):
         :param kwargs: filters
             - re_incl: regex the title must match
             - re_excl: regex the title must not match
+            - re_incl_raw: regex the raw title must match
+            - re_excl_raw: regex the raw title must not match
             - langs: langs the title must match
             - size_min: minimum result size
             - size_max: maximum result size
         '''
+        if not self._validate_title(kwargs.get('re_incl_raw'), kwargs.get('re_excl_raw'), clean=False):
+            return
         if not self._validate_title(kwargs.get('re_incl'), kwargs.get('re_excl')):
             return
         if not self._validate_lang(kwargs.get('langs')):

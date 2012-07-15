@@ -204,24 +204,6 @@ class TitleTvTest(unittest.TestCase):
             self.assertEquals(res.episode, episode)
 
 
-# TODO
-# class TitleAudioTest(unittest.TestCase):
-
-#     def setUp(self):
-#         self.fixtures = [
-#             ('Artist_Name_-_Album_Name_-_2012_-_TEAM',
-#                 'artist name', 'album name', 2012),
-#             ('Artist_Name-Album_Name-2012-TEAM',
-#                 'artist name', 'album name', 2012),
-#             ('07-Artist_Name-Album_Name.mp3',
-#                 'artist name', 'album name', 2012),
-#             ]
-
-#     def test_title(self):
-#         for title, artist, album, date in self.fixtures:
-#             res = Title(title)
-
-
 class PreviousEpisodeTest(unittest.TestCase):
 
     def setUp(self):
@@ -236,7 +218,7 @@ class PreviousEpisodeTest(unittest.TestCase):
 
     def test_previous_episode(self):
         for query, season, episode in self.fixtures:
-            res = Title(query).get_previous_episode()
+            res = Title(query)._get_prev_episode()
 
             self.assertEquals(res, (season, episode))
 
@@ -286,12 +268,16 @@ class TitleSearchTest(unittest.TestCase):
         self.fixtures_tv = [
             ('show name', '.show.name.'),
             ('show name', 'the.show.name.'),
-            ('show name', 'SHOWS NAMES'),
+            ('show name', 'SHOW NAME'),
+            ('show name', 'show\'s name\'s'),
             ('show name 2011', 'show name 2011'),
             ('show name 20x11', 'show name s20e11'),
             ('show name 1x23', 'show name s01e23'),
             ('show name 01x23', 'show name s01e23'),
             ('show name 1x23', 'show name s01e23 episode title'),
+            ('show name 1x23', 'show name s01e22-23 episode title'),
+            ('show name 1x23', 'show name s01e23-24 episode title'),
+            ('show name 78 1x23', 'show name 78 s01e23 episode title'),
             ('show name 23 1x23', 'show name 23 s01e23 episode title'),
 
             ('anime name 123', '[TEAM]_Anime_Name-123_[COMMENT]'),
@@ -315,35 +301,37 @@ class TitleSearchTest(unittest.TestCase):
             ]
 
         self.fixtures_movies = [
-            ('my movie name', 'My.Movie.Name.2012.DVDRip.XviD-TEAM')
+            ('my movie name', 'my.movie.name.2012.DVDRip.XviD-TEAM'),
+            ('movie name', 'the.movie.name.2012.DVDRip.XviD-TEAM'),
+            ('my movie name', 'My.Movie.Name.2012.DVDRip.XviD-TEAM'),
+            ('my movie name', 'My.Movie\'s.Name.2012.DVDRip.XviD-TEAM'),
             ]
 
         self.fixtures_movies_err = [
-            ('my movie name', 'My.Name.Movie.2012.DVDRip.XviD-TEAM')
-            # ('my movie name', 'My.Movie.Name.II.2012.DVDRip.XviD-TEAM')
+            ('my movie name', 'My.Other.Movie.Name.2012.DVDRip.XviD-TEAM'),
             ]
 
     def test_search_tv(self):
         for query, title in self.fixtures_tv:
             res = Title(query).get_search_re()
 
-            self.assertTrue(res.search(title), '"%s" should match "%s"' % (res.pattern, title))
+            self.assertTrue(res.search(title), '"%s" (%s) should match "%s"' % (query, res.pattern, title))
 
         for query, title in self.fixtures_tv_err:
             res = Title(query).get_search_re()
 
-            self.assertFalse(res.search(title), '"%s" should not match "%s"' % (res.pattern, title))
+            self.assertFalse(res.search(title), '"%s" (%s) should not match "%s"' % (query, res.pattern, title))
 
     def test_search_movies(self):
         for query, title in self.fixtures_movies:
-            res = Title(query).get_search_re('word3')
+            res = Title(query).get_search_re(mode='__all__')
 
-            self.assertTrue(res.search(title), '"%s" should match "%s"' % (res.pattern, title))
+            self.assertTrue(res.search(title), '"%s" (%s) should match "%s"' % (query, res.pattern, title))
 
         for query, title in self.fixtures_movies_err:
-            res = Title(query).get_search_re('word3')
+            res = Title(query).get_search_re(mode='__all__')
 
-            self.assertFalse(res.search(title), '"%s" should not match "%s"' % (res.pattern, title))
+            self.assertFalse(res.search(title), '"%s" (%s) should not match "%s"' % (query, res.pattern, title))
 
 
 #
@@ -504,8 +492,9 @@ class TvrageTest(unittest.TestCase):
 
         self.assertEquals(res.get('date'), TVSHOW_YEAR)
 
-        for key in ('date', 'status', 'style', 'runtime', 'network', 'latest_episode',
-                'next_episode', 'url', 'country', 'date', 'airs', 'genre',):
+        for key in ('date', 'status', 'style', 'runtime', 'network',
+                'latest_episode', 'url', 'country', 'date', 'airs',
+                'genre'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, TVSHOW))
 
     def test_scheduled_shows(self):

@@ -40,7 +40,7 @@ class Youtube(object):
         # Convert non unicode characters
         title = clean(title)
 
-        re_title = Title(title).get_search_re('word3')
+        re_title = Title(title).get_search_re(mode='__all__')
         query = '%s%s trailer' % (title, ' %s' % date if date else '')
         for result in self.results(query):
             if re_title.search(result['title']) and result['url_watch'] and result['urls_thumbnails']:
@@ -51,7 +51,7 @@ class Youtube(object):
         artist = clean(artist)
         album = clean(album)
 
-        re_title = Title(artist).get_search_re('word3')
+        re_title = Title(artist).get_search_re(mode='__all__')
         for result in self.results('%s %s' % (artist, album)):
             if re_title.search(result['title']) and result['url_watch'] and result['urls_thumbnails']:
                 return result

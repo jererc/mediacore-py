@@ -48,6 +48,7 @@ class Transmission(object):
         try:
             res = self.client.info(id).items()[0][1]
         except Exception:
+            logger.exception('exception')
             return
         if not res:
             return
