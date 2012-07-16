@@ -328,17 +328,16 @@ class Video(File):
         '''Get the file info.
         '''
         info = get_info(self.file)
+        if info:
+            # Get title info using parent directory name and its parent's name
+            title = Title(self.filename, [self.dir, os.path.basename(os.path.dirname(self.path))])
+            for attr in ('full_name', 'display_name', 'name', 'season', 'episode', 'date', 'rip', 'langs'):
+                info[attr] = getattr(title, attr)
 
-        # Get title info using parent directory name and its parent's name
-        title = Title(self.filename, [self.dir, os.path.basename(os.path.dirname(self.path))])
-        for attr in ('full_name', 'display_name', 'name', 'season', 'episode', 'date', 'rip', 'langs'):
-            info[attr] = getattr(title, attr)
-
-        if info['episode'] and (RE_TVSHOW_CHECK.search(self.filename) or check_size(self.file, size_max=SIZE_TVSHOW_MAX)):
-            info['subtype'] = 'tv'
-        else:
-            info['subtype'] = 'movies'
-
+            if info['episode'] and (RE_TVSHOW_CHECK.search(self.filename) or check_size(self.file, size_max=SIZE_TVSHOW_MAX)):
+                info['subtype'] = 'tv'
+            else:
+                info['subtype'] = 'movies'
         return info
 
     def get_base(self, path_root=None):
@@ -347,18 +346,19 @@ class Video(File):
         base = self.file
         size_min = get_size(self.file) / 1024 / 10
         info = self.get_file_info()
-        re_name = Title(info['display_name']).get_search_re()
-        dir = base
-        for i in range(2):
-            dir = os.path.dirname(dir)
-            if path_root and dir == path_root:
-                break
+        if info:
+            re_name = Title(info['display_name']).get_search_re()
+            dir = base
+            for i in range(2):
+                dir = os.path.dirname(dir)
+                if path_root and dir == path_root:
+                    break
 
-            # Check if directory files are related
-            for file in files(dir, size_min=size_min, types=self.type):
-                if not re_name.search(file.get_file_info()['display_name']):
-                    return base
-            base = dir
+                # Check if directory files are related
+                for file in files(dir, size_min=size_min, types=self.type):
+                    if not re_name.search(file.get_file_info()['display_name']):
+                        return base
+                base = dir
         return base
 
     def get_subtitles(self, lang):
@@ -398,13 +398,12 @@ class Audio(File):
         '''Get the file info.
         '''
         info = get_info(self.file)
-
-        info['full_name'] = '%s%s%s' % (info['artist'], ' ' if info['artist'] and info['album'] else '', info['album'])
-        info['display_name'] = '%s%s%s' % (info['artist'], ' - ' if info['artist'] and info['album'] else '', info['album'])
-        if info.get('date'):
-            info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
-        info['subtype'] = 'music'
-
+        if info:
+            info['full_name'] = '%s%s%s' % (info['artist'], ' ' if info['artist'] and info['album'] else '', info['album'])
+            info['display_name'] = '%s%s%s' % (info['artist'], ' - ' if info['artist'] and info['album'] else '', info['album'])
+            if info.get('date'):
+                info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
+            info['subtype'] = 'music'
         return info
 
     def get_base(self, path_root=None):
@@ -412,7 +411,7 @@ class Audio(File):
         '''
         base = self.file
         info = self.get_file_info()
-        if info['display_name']:
+        if info.get('display_name'):
             dir = base
             for i in range(2):
                 dir = os.path.dirname(dir)
