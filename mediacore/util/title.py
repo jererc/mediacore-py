@@ -1,9 +1,10 @@
 import re
 from datetime import datetime
-import unicodedata
 from urlparse import urlparse
 
 from lxml import html
+
+import trans
 
 
 RE_EPISODE_LIST = [
@@ -19,7 +20,7 @@ PATTERN_SEP_JUNK = '(%s)' % '|'.join(LIST_JUNK_SEARCH)
 PATTERN_EXTRA = r'[\(\[\{].*?[\)\]\}]'
 PATTERN_RIP_PRE = r'\d*[\W_]*(cd|dvd)[\W_]*\d*|pal|ntsc|(480|576|720|1080)[pi]'
 PATTERN_RIP_MOVIES = r'blu[\W_]*ray|md|screener|ts|teaser|cam|r5|(bd|br|dvd|web|vod|dtt)rip|dvd[\W_]*(r|rip|scr)?|dvd\w*|(bd|br)[\W_]*scr'
-PATTERN_RIP_TV = r'[hp]dtv|stv|tv[\W_]?rip'
+PATTERN_RIP_TV = r'[hp]dtv|stv|tv[\W_]?rip|dvdrip'
 PATTERN_RIP_FORMAT = r'ac3|xvid|divx|hd|[xh]264|rmvb'
 PATTERN_RIP_EXTRA = r'ws|limited|final|proper|multi|repack([\W_]*\dcd)?|ld|hd'  # need PATTERN_RIP_MOVIES or PATTERN_RIP_TV to match
 PATTERNS_LANGS = {
@@ -36,25 +37,27 @@ PATTERNS_LANGS = {
 LANG_DEFAULT = 'en'     # default language when none found
 
 
+def _clean_special(val):
+    val = re.sub(r'[\n\r\t]+', '', val)
+    val = re.sub(r'(&(nbsp|#160|#xA0);)+', ' ', val)    # replace no-break spaces
 
-def clean(val, level=0):
-    if not val:
-        return ''
-
-    val = re.sub(r'(\n|\r|\t)+', '', val)  # remove eol and tabs
-    val = re.sub(r'&nbsp;|&#160;|&#xA0;', ' ', val)     # replace no-break space
-    try:    # remove html markup
+    # Remove html markup
+    try:
         val = html.tostring(html.fromstring(val), method='text', encoding=unicode)
     except Exception:
         pass
 
-    # Replace accents
-    try:
-        val = unicode(val.encode('iso-8859-1'), 'utf8')
-    except Exception:
-        pass
-    val = unicodedata.normalize('NFD', val)
-    val = val.encode('ascii', 'ignore')
+    # Replace special characters (e.g.: accents)
+    if not isinstance(val, unicode):
+        val = val.decode('utf-8')
+    val = val.encode('trans')
+
+    return str(val).strip()
+
+def clean(val, level=0):
+    if not val:
+        return ''
+    val = _clean_special(val)
 
     if level >= 1:
         val = val.lower()
@@ -249,6 +252,7 @@ class Title(object):
                     self.name = i_alt.name
                     self.season = i_alt.season
                     self.episode = i_alt.episode
+                    self.episode_alt = i_alt.episode_alt
                     self.date = i_alt.date
                     self.rip = i_alt.rip
                     break
@@ -260,10 +264,13 @@ class Title(object):
         if len(self.langs) > 1 and LANG_DEFAULT in self.langs:
             self.langs.remove(LANG_DEFAULT)
 
-        # Get display name
+        # Handle anime episode
         if self.episode_alt and not is_tv(self.rip):
-            self.display_name = '%s %s' % (self.name, self.episode_alt)
-        elif self.episode:
+            self.season = ''
+            self.episode = self.episode_alt
+
+        # Get display name
+        if self.episode:
             season_str = '%sx' % self.season if self.season else ''
             self.display_name = '%s %s%s' % (self.name, season_str, self.episode)
         else:

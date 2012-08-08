@@ -25,7 +25,7 @@ def parse(file):
 
     cat = None
     for line in stdout:
-        fields = re.split(r'\s*:\s*', line.lower())
+        fields = re.split(r'\s*:\s*', line.decode('utf-8').lower())
 
         if len(fields) == 1:
             cat = fields[0]

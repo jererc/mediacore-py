@@ -1,3 +1,5 @@
+from pymongo.objectid import ObjectId
+
 from mediacore.util.db import get_db
 
 
@@ -22,8 +24,18 @@ class Base(object):
     def update(self, *args, **kwargs):
         return self.col.update(*args, **kwargs)
 
+    def find_and_modify(self, *args, **kwargs):
+        return self.col.find_and_modify(*args, **kwargs)
+
     def remove(self, *args, **kwargs):
         return self.col.remove(*args, **kwargs)
 
     def drop(self, *args, **kwargs):
         return self.col.drop(*args, **kwargs)
+
+    def get(self, id=None, **kwargs):
+        spec = {}
+        if id:
+            spec['_id'] = ObjectId(id)
+        spec.update(kwargs)
+        return self.find_one(spec)

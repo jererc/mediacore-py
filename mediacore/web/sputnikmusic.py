@@ -45,7 +45,7 @@ class Sputnikmusic(Base):
                 if res:
                     return res.get_data()
 
-    def get_info(self, artist):
+    def _get_info(self, artist):
         data = self._get_data(artist)
         if not data:
             return
@@ -96,10 +96,15 @@ class Sputnikmusic(Base):
                 log = ''.join([html.tostring(tag, pretty_print=True) for tag in tds])
 
                 info_album = {}
+                if info.get('genre'):
+                    info_album['genre'] = info['genre']
+
                 try:
                     info_album['name'] = clean(tds[1][0][0][0][0].text, 1)
                 except Exception:
                     logger.error('failed to get album name from %s', log)
+                    continue
+                if not info_album['name']:
                     continue
                 try:
                     info_album['url'] = urljoin(self.url, tds[0][0].get('href'))
@@ -125,34 +130,22 @@ class Sputnikmusic(Base):
 
         return info
 
-    def get_album_info(self, artist, album):
-        info = self.get_info(artist)
+    def get_info(self, artist, album=None):
+        info = self._get_info(artist)
+        if not album:
+            return info
         if info:
             re_album = Title(album).get_search_re()
             for res in info['albums']:
                 if re_album.search(res['name']):
-                    res['genre'] = info.get('genre')
                     return res
 
-    def get_query_info(self, query):
-        if not self.submit_form(self.url, fields={'search_text': query}):
-            return
-
-        for link in list(self.browser.links()):
-            re_artist = re.compile(r'^(%s)\s+(.*)$' % link.text, re.I)
-            res = re_artist.search(query)
-            if not res:
-                continue
-
-            artist_name, album_name = res.groups()
-            info = self.get_info(link.absolute_url)
-            if not info:
-                continue
-
-            re_album = Title(album_name).get_search_re()
-            for res in info['albums']:
-                if re_album.search(res['name']):
-                    return res
+    def get_similar(self, artist):
+        '''Get similar artists.
+        '''
+        info = self.get_info(artist)
+        if info:
+            return info.get('similar_bands', [])
 
     def reviews(self):
         for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):
@@ -197,3 +190,23 @@ class Sputnikmusic(Base):
                     logger.error('failed to get thumbnail url from %s', log)
 
                 yield info
+
+    # def _get_menu_url(self, text):
+    #     data = self.browser.response().get_data()
+    #     if not data:
+    #         return
+    #     tree = html.fromstring(data)
+    #     re_text = re.compile(r'%s' % text, re.I)
+    #     for link in tree.cssselect('#tabnav li a'):
+    #         if re_text.search(link.text):
+    #             return urljoin(self.url, link.get('href'))
+
+    # def releases(self):
+    #     url = self._get_menu_url('new releases')
+    #     if not url:
+    #         logger.error('failed to find new releases link')
+    #         return
+    #     data = self.browser.open(url).get_data()
+    #     if not data:
+    #         return
+    #     tree = html.fromstring(data)

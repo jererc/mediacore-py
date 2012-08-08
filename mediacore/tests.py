@@ -492,7 +492,7 @@ class TvrageTest(unittest.TestCase):
 
         self.assertEquals(res.get('date'), TVSHOW_YEAR)
 
-        for key in ('date', 'status', 'style', 'runtime', 'network',
+        for key in ('date', 'status', 'classification', 'runtime', 'network',
                 'latest_episode', 'url', 'country', 'date', 'airs',
                 'genre'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, TVSHOW))

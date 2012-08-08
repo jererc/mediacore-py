@@ -1,112 +1,52 @@
-from pymongo.objectid import ObjectId
+from datetime import datetime
 
 from mediacore.model import Base
-from mediacore.util.title import Title
 
 
 class Search(Base):
     COL = 'searches'
 
-    def add(self, q, category, mode='once', langs=None, **kwargs):
-        q = q.lower()
-        category = category.lower()
-        search = {
-            'q': q,
-            'category': category,
-            'mode': mode,
+    def add(self, name, category, mode='once', langs=None, **kwargs):
+        doc = {
+            'name': name.lower(),
+            'category': category.lower(),
+            'mode': mode.lower(),
             'langs': langs or [],
             }
-        search.update(kwargs)
+        doc.update(kwargs)
+        if not self.find_one(doc):
+            doc['created'] = datetime.utcnow()
+            return self.insert(doc, safe=True)
 
-        res = self.get(q=q, category=category)
-        if res:
-            self.update(res['_id'], info=search)
-        else:
-            self.col.insert(search, safe=True)
+    def get_query(self, search):
+        query = search['name']
 
-    def get(self, id=None, q=None, category=None):
-        spec = {}
-        if id:
-            spec['_id'] = ObjectId(id)
-        if q:
-            spec['q'] = q
-        if category:
-            spec['category'] = category
-        return self.col.find_one(spec)
+        if search.get('episode'):
+            extra = '%02d' % search['episode']
+            if search.get('season'):
+                extra = '%sx%s' % (search['season'], extra)
+            query = '%s %s' % (query, extra)
 
-    def update(self, id=None, q=None, category=None, spec=None, info=None):
-        if not info:
-            return
+        elif search.get('album'):
+            query = '%s %s' % (query, search['album'])
 
-        if not spec:
-            spec = {}
-        if id:
-            spec['_id'] = ObjectId(id)
-        if q:
-            spec['q'] = q
-        if category:
-            spec['category'] = category
-        self.col.update(spec, {'$set': info}, safe=True, multi=True)
+        return query
 
-    def remove(self, id=None, q=None, category=None, spec=None):
-        if not spec:
-            spec = {}
-        if id:
-            spec['_id'] = ObjectId(id)
-        if q:
-            spec['q'] = q
-        if category:
-            spec['category'] = category
-        return self.col.remove(spec, safe=True)
+    def get_next(self, search, mode='episode'):
+        res = {
+            'name': search['name'],
+            'category': search['category'],
+            'mode': search['mode'],
+            'langs': search.get('langs') or [],
+            }
+        for key in ('album', 'season', 'episode'):
+            if search.get(key):
+                res[key] = search[key]
 
-    def remove_all(self, name, category):
-        '''Remove all searches matching the name and category.
-
-        :param name: search name (e.g.: tv show or anime title)
-        '''
-        ids = []
-        for search in self.col.find({'category': category}):
-            if search['category'] in ('tv', 'anime'):
-                search_name = Title(search['q']).name
-            else:
-                search_name = search['q'].lower()
-
-            if search_name == name:
-                ids.append(search['_id'])
-
-        if ids:
-            self.col.remove({'_id': {'$in': ids}}, safe=True)
-
-    def list_names(self):
-        '''Get searches names by category.
-        '''
-        res = {}
-        for search in self.col.find():
-            res.setdefault(search['category'], [])
-
-            if search['category'] in ('tv', 'anime'):
-                name = Title(search['q']).name
-            else:
-                name = search['q'].lower()
-            res[search['category']].append(name)
-
-        return res
-
-    def get_next_episode(self, query):
-        '''Get the query for the next episode.
-        '''
-        title = Title(query)
-        if title.episode_alt:   # we do not consider the season (e.g.: anime episodes)
-            episode_new = str(int(title.episode_alt) + 1).zfill(len(title.episode_alt))
-            return '%s %s' % (title.name, episode_new)
-        elif title.episode:
-            episode_new = str(int(title.episode) + 1).zfill(len(title.episode))
-            season_str = '%sx' % title.season if title.season else ''
-            return '%s %s%s' % (title.name, season_str, episode_new)
-
-    def get_next_season(self, query):
-        '''Get the query for the next season (first episode).
-        '''
-        title = Title(query)
-        if title.season and title.episode and not title.episode_alt:
-            return '%s %sx01' % (title.name, str(int(title.season) + 1))
+        if mode == 'episode' and res.get('episode'):
+            res['episode'] += 1
+            return res
+        elif mode == 'season' and res.get('season'):
+            res['season'] += 1
+            res['episode'] = 1
+            return res

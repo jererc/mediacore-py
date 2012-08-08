@@ -21,8 +21,12 @@ logger = logging.getLogger(__name__)
 class Browser(mechanize.Browser):
     '''Base browser class.
     '''
-    def __init__(self, user_agent=USER_AGENT, debug_http=False):
-        mechanize.Browser.__init__(self)    # mechanize.Browser is an old style class
+    def __init__(self, user_agent=USER_AGENT, robust_factory=False,
+                debug_http=False):
+        args = {}
+        if robust_factory:
+            args['factory'] = mechanize.RobustFactory()
+        mechanize.Browser.__init__(self, **args)    # mechanize.Browser is an old style class
         self.addheaders = [('User-Agent', user_agent)]
         self.set_handle_robots(False)
         self.set_handle_refresh(False)
@@ -40,6 +44,21 @@ class Browser(mechanize.Browser):
         except Exception:
             logger.exception('exception')
 
+    def get_unicode_data(self, url=None, response=None):
+        if url:
+            response = self.open(url)
+        if not response:
+            return
+
+        res = response.read()
+        content_type = response.info().getheader('content-type')
+        try:
+            encoding = re.search(r'charset=([^\s]+)', content_type).groups()[0]
+            res = res.decode(encoding)
+        except (AttributeError, IndexError):
+            logger.error('failed to get the encoding at %s', response.geturl())
+        return res
+
     def follow_link(self, *args, **kwargs):
         try:
             return mechanize.Browser.follow_link(self, *args, **kwargs)
@@ -50,8 +69,11 @@ class Browser(mechanize.Browser):
 class Base(object):
     '''Base website class.
     '''
+    ROBUST_FACTORY = False
+
     def __init__(self, debug_http=False):
-        self.browser = Browser(debug_http=debug_http)
+        self.browser = Browser(robust_factory=self.ROBUST_FACTORY,
+                debug_http=debug_http)
         self.url = self._get_url()
         if self.url:
             self.accessible = True
@@ -89,7 +111,7 @@ class Base(object):
 
         if debug:
             for form in self.browser.forms():
-                logger.info('form: %s' % form.attrs)
+                logger.info('form: %s' % str(form))
 
         if name:
             form_info = {'name': name}

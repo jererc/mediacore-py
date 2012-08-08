@@ -1,3 +1,5 @@
+from pymongo.objectid import ObjectId
+
 from mediacore.model import Base
 
 
@@ -10,12 +12,14 @@ class Worker(Base):
 
         :param worker: worker name
         '''
-        res = self.find_one({'worker': worker})
-        if not res:
-            id = self.insert({'worker': worker}, safe=True)
-            res = self.find_one({'_id': id})
-
-        return res
+        doc = self.find_one({'worker': worker})
+        if not doc:
+            doc = {
+                '_id': ObjectId(),
+                'worker': worker,
+                }
+            self.save(doc, safe=True)
+        return doc
 
     def get_attr(self, worker, attr, default=None):
         '''Get an attribute.

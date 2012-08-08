@@ -84,7 +84,7 @@ class Tvrage(Base):
             for key in ('status', 'runtime', 'airs'):
                 info[key] = clean(info_.get(key)).lower()
 
-            info['style'] = clean(info_.get('classification', '').lower())
+            info['classification'] = clean(info_.get('classification', '').lower())
             info['genre'] = [clean(g, 1) for g in re.split(r'\s*\|\s*', info_.get('genre', ''))]
             res = RE_YEAR.search(info_.get('premiere', ''))
             if res:

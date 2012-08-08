@@ -125,7 +125,6 @@ class Transmission(object):
         :param callable: callable for finished downloads
         '''
         for torrent in self.torrents():
-
             if not self._check_torrent_files(torrent):
                 if torrent.progress == 100 and dst_invalid \
                         and not self._move_torrent_files(torrent, dst_invalid):

@@ -20,10 +20,9 @@ RE_TVSHOW_CHECK = re.compile(r'[\W_]s\d{2}e\d{2}[\W_]', re.I)
 RE_SPECIAL_CHAR = re.compile(r'[^\w_\-\(\)\[\]\{\}\.]')
 RE_SUB_FILENAME = re.compile(r'\((.*)\)$')
 RE_SUB_DIFF = re.compile(r'\b(cd[\W_]*\d+|(480|720|1080)[pi]|parodie)\b', re.I)
-RE_EXTRACT_SET = re.compile(r'^\.r?\d+$', re.I)
 RE_EXTRACT_ERRORS = {
-    '.rar': re.compile(r'\bCorrupt\sfile\sor\swrong\spassword\b', re.I),
     '.zip': re.compile(r'\b(signature\snot\sfound|unsupported\scompression\smethod)\b', re.I),
+    '.rar': re.compile(r'\bCorrupt\sfile\sor\swrong\spassword\b', re.I),
     }
 SIZE_TVSHOW_MAX = 600   # for tvshow detection (MB)
 ARCHIVE_DEF = {
@@ -90,8 +89,8 @@ def get_file(file, real_file=None):
     return cl_default(file)
 
 def files(path_root, re_file=None, re_path=None, re_filename=None, re_ext=None,
-        size_min=None, size_max=None, incl_files=True, incl_dirs=False,
-        types=None, topdown=False, recursive=True):
+            size_min=None, size_max=None, incl_files=True, incl_dirs=False,
+            types=None, topdown=False, recursive=True):
     '''Iterate files and yield File objects according to the file type.
     '''
     if not os.path.exists(path_root):
@@ -316,13 +315,41 @@ class File(object):
         '''
         return {}
 
-    def get_base(self, path_root=None):
+    def get_base(self):
         '''Get the base directory or filename.
         '''
         return self.file
 
 
-class Video(File):
+class Media(File):
+
+    TYPES = ['video', 'audio']
+
+    def _has_unrelated(self, name, path):
+        '''Check unrelated media in the given directory.
+        '''
+        size_limit = get_size(self.file) / 10.0
+        for file in files(path, types=self.TYPES):
+            if file.file == self.file:
+                continue
+
+            name_ = file.get_file_info().get('display_name')
+            if not name_ or name_ != name:
+                if file.type == self.type == 'video' and get_size(file.file) < size_limit:
+                    continue
+                return True
+
+    def get_base(self):
+        path = self.file
+        name = self.get_file_info().get('display_name')
+        for i in range(3):
+            if self._has_unrelated(name, os.path.dirname(path)):
+                break
+            path = os.path.dirname(path)
+        return path
+
+
+class Video(Media):
 
     def get_file_info(self):
         '''Get the file info.
@@ -339,27 +366,6 @@ class Video(File):
             else:
                 info['subtype'] = 'movies'
         return info
-
-    def get_base(self, path_root=None):
-        '''Get the base directory or filename.
-        '''
-        base = self.file
-        size_min = get_size(self.file) / 1024 / 10
-        info = self.get_file_info()
-        if info:
-            re_name = Title(info['display_name']).get_search_re()
-            dir = base
-            for i in range(2):
-                dir = os.path.dirname(dir)
-                if path_root and dir == path_root:
-                    break
-
-                # Check if directory files are related
-                for file in files(dir, size_min=size_min, types=self.type):
-                    if not re_name.search(file.get_file_info()['display_name']):
-                        return base
-                base = dir
-        return base
 
     def get_subtitles(self, lang):
         '''Get the subtitles file.
@@ -392,7 +398,7 @@ class Video(File):
             return sorted([[v, k] for k, v in stat.items()])[-1][1]
 
 
-class Audio(File):
+class Audio(Media):
 
     def get_file_info(self):
         '''Get the file info.
@@ -405,27 +411,6 @@ class Audio(File):
                 info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
             info['subtype'] = 'music'
         return info
-
-    def get_base(self, path_root=None):
-        '''Get the base directory or filename.
-        '''
-        base = self.file
-        info = self.get_file_info()
-        if info.get('display_name'):
-            dir = base
-            for i in range(2):
-                dir = os.path.dirname(dir)
-                if path_root and dir == path_root:
-                    break
-
-                # Check if directory files are related
-                for file in files(dir, types=self.type):
-                    info_ = file.get_file_info()
-                    if info_['display_name'] and info_['display_name'] != info['display_name']:
-                        return base
-                base = dir
-
-        return base
 
 
 class Subtitles(File):
@@ -443,28 +428,11 @@ class Subtitles(File):
         except Exception:
             pass
 
-        video_file = self.get_video()
-        if video_file:
-            # Get video info
-            info_video = get_file(video_file).get_file_info()
-            for attr in ('full_name', 'display_name', 'name', 'season', 'episode', 'date', 'subtype'):
-                info[attr] = info_video[attr]
-        else:
-            title = Title(self.filename, self.dir)
-            for attr in ('full_name', 'display_name', 'name', 'season', 'episode', 'date'):
-                info[attr] = getattr(title, attr)
-
-            if info['episode'] and (RE_TVSHOW_CHECK.search(self.filename) or check_size(self.file, size_max=SIZE_TVSHOW_MAX)):
-                info['subtype'] = 'tv'
-            else:
-                info['subtype'] = 'movies'
+        title = Title(self.filename, self.dir)
+        for attr in ('full_name', 'display_name', 'name', 'season', 'episode', 'date'):
+            info[attr] = getattr(title, attr)
 
         return info
-
-    def get_base(self, path_root=None):
-        '''Get the base directory or filename.
-        '''
-        return self.file
 
     def get_video(self):
         '''Get the related video file.
@@ -484,19 +452,8 @@ class Archive(File):
         info['protected'] = self.is_protected()
         return info
 
-    def get_base(self, path_root=None):
-        '''Get the base directory or filename.
-        '''
-        return self.file
-
     def is_main_file(self):
-        multipart_archives = []
-        for file in self.get_multipart_files():
-            if get_type(file) == self.type:
-                multipart_archives.append(file)
-
-        if not multipart_archives or multipart_archives[0] == self.file:
-            return True
+        return self.file == self.get_multipart_files()[0]
 
     def is_protected(self):
         '''Return True if the archive is password protected.
@@ -526,20 +483,28 @@ class Archive(File):
     def get_multipart_files(self):
         '''Get multipart archive files
         '''
-        res = []
-        filename_, ext_ = os.path.splitext(self.filename)
-        if ext_.lower().startswith('.part') and filename_:
-            res = [f.file for f in files(self.path,
-                    re_filename=re.compile(r'^%s\.part\d+$' % re.escape(filename_)),
-                    re_ext=re.compile(r'^%s$' % re.escape(self.ext), re.I),
-                    recursive=False)]
-        else:
-            res = [self.file] + [f.file for f in files(self.path,
-                    re_filename=re.compile(r'^%s$' % re.escape(self.filename)),
-                    re_ext=RE_EXTRACT_SET,
-                    recursive=False)]
+        real_file = getattr(self, 'real_file', self.file)
+        path_, filename_, ext_ = fsplit(real_file)
 
-        return sorted(res)
+        pattern = re.sub(r'part\d+', r'part\\d+', re.escape(filename_))
+
+        # Get files with an archive extension
+        pattern_ext = r'(%s)' % '|'.join([re.escape(k) for k in ARCHIVE_DEF])
+        re_files = re.compile(r'/%s%s(\..*)?$' % (pattern, pattern_ext), re.I)
+        files_ = sorted([f.file for f in files(self.path,
+                re_file=re_files, recursive=False)])
+
+        # Get files with a part extension (e.g.: .rXX)
+        pattern_ext = r'(\.r?\d+)'
+        re_files = re.compile(r'/%s%s(\..*)?$' % (pattern, pattern_ext), re.I)
+        files_more = sorted([f.file for f in files(self.path,
+                re_file=re_files, recursive=False)])
+
+        for file in files_more:
+            if file not in files_:
+                files_.append(file)
+
+        return files_
 
     def unpack(self, remove_src=True, remove_failed=True):
         '''Unpack the archive in its directory.

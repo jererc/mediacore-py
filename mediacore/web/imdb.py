@@ -173,3 +173,19 @@ class Imdb(Base):
                     res = self._get_name_url_info(url)
                     if res:
                         return res
+
+    def get_similar(self, query=None, type='title', year=None):
+        '''Get similar movies.
+        '''
+        if type == 'name':
+            names = [query]
+        else:
+            info = self.get_info(query=query, type=type, year=year) or {}
+            names = info.get('director', []) + info.get('stars', [])
+
+        res = []
+        for name in names:
+            info = self.get_info(query=name, type='name') or {}
+            res.extend(info.get('titles_known_for', []))
+
+        return res
