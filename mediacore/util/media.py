@@ -4,6 +4,7 @@ from datetime import datetime
 import shutil
 from stat import S_IMODE
 import mimetypes
+import filecmp
 import logging
 
 from lxml import html
@@ -233,6 +234,24 @@ def rename_file(file, file_dst):
             return file
     return file_dst
 
+def is_duplicate(src, dst):
+    '''Check if source is identical to destination.
+    '''
+    if not os.path.exists(dst):
+        return
+    if os.path.isfile(src):
+        return filecmp.cmp(src, dst)
+
+    to_compare = []
+    re_filename = re.compile(r'^%s/(.*)$' % re.escape(src))
+    for file in iter_files(src):
+        filename = re_filename.search(file).group(1)
+        to_compare.append(filename)
+
+    match, mismatch, errors = filecmp.cmpfiles(src, dst, to_compare)
+    if not mismatch and not errors:
+        return True
+
 def move_file(src, path_dst):
     '''Move the file or directory into the destination path.
 
@@ -246,12 +265,16 @@ def move_file(src, path_dst):
             logger.exception('failed to create %s', path_dst)
             return
 
-    dst = get_unique(os.path.join(path_dst, os.path.basename(src)))
-    try:
-        shutil.move(src, dst)
-    except Exception:
-        logger.exception('exception')
-        return
+    dst = os.path.join(path_dst, os.path.basename(src))
+    if is_duplicate(src, dst):
+        remove_file(src)
+    else:
+        dst = get_unique(dst)
+        try:
+            shutil.move(src, dst)
+        except Exception:
+            logger.exception('exception')
+            return
     return dst
 
 def remove_file(file):

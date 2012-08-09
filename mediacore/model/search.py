@@ -3,6 +3,9 @@ from datetime import datetime
 from mediacore.model import Base
 
 
+EXTRA_KEYS = ['album', 'season', 'episode']
+
+
 class Search(Base):
     COL = 'searches'
 
@@ -13,8 +16,12 @@ class Search(Base):
             'mode': mode.lower(),
             'langs': langs or [],
             }
-        doc.update(kwargs)
+        for key in EXTRA_KEYS:
+            if key in kwargs:
+                doc[key] = kwargs[key]
+
         if not self.find_one(doc):
+            doc.update(kwargs)
             doc['created'] = datetime.utcnow()
             return self.insert(doc, safe=True)
 
@@ -39,8 +46,8 @@ class Search(Base):
             'mode': search['mode'],
             'langs': search.get('langs') or [],
             }
-        for key in ('album', 'season', 'episode'):
-            if search.get(key):
+        for key in EXTRA_KEYS:
+            if key in search:
                 res[key] = search[key]
 
         if mode == 'episode' and res.get('episode'):
