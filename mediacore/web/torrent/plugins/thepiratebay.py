@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 class Thepiratebay(Base):
     URL = [
-        'https://tpb.pirateparty.org.uk',
         'https://piratereverse.info',
+        'https://tpb.pirateparty.org.uk',
         'http://unblockedpiratebay.com',
         ]
 
