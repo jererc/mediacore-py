@@ -4,8 +4,8 @@ import logging
 
 from systools.system import is_file_open
 
-from mediacore.util.media import (File, files, iter_files, clean_file, fsplit, rename_file,
-        remove_file, get_file, get_type, get_size, check_size)
+from mediacore.util.media import (File, files, iter_files, clean_file, fsplit,
+        rename_file, remove_file, get_file, get_type, get_size, check_size)
 
 
 RE_DOWNLOAD_JUNK = re.compile(r'/(\.DS_Store|Thumbs\.db)$', re.I)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def downloads(path):
-    '''Iterate finished downloads.
+    '''Iterate processed downloads.
     '''
     if not os.path.exists(path):
         logger.error('%s does not exist', path)

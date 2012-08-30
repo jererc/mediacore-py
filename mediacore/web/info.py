@@ -55,6 +55,20 @@ def similar_movies(query, type='title', year=None, randomized=True,
             continue
         yield movie_info['title']
 
+def similar_tv(query, years_delta=None, randomized=True, filters=None):
+    '''Iterate over similar tv shows from a tv show name.
+    '''
+    tvrage = Tvrage()
+    similar_tv = tvrage.get_similar(query, years_delta=years_delta)
+    if randomized:
+        similar_tv = randomize(similar_tv)
+
+    for tv_info in similar_tv:
+        info = tvrage.get_info(tv_info['url']) or {}
+        if filters and not validate_info(info, filters['tvrage']):
+            continue
+        yield tv_info['title']
+
 def similar_music(band, randomized=True, filters=None):
     '''Iterate over similar artists albums from a music band.
     '''
@@ -172,7 +186,7 @@ def get_info(obj):
     if category == 'movies':
         info['url_info'] = extra.get('imdb', {}).get('url')
 
-    elif category == 'tv':
+    elif category in ('tv', 'anime'):
         info['url_info'] = extra.get('tvrage', {}).get('url') or extra.get('imdb', {}).get('url')
 
     elif category == 'music':

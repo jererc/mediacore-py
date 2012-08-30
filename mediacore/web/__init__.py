@@ -44,6 +44,12 @@ class Browser(mechanize.Browser):
         except Exception:
             logger.exception('exception')
 
+    def follow_link(self, *args, **kwargs):
+        try:
+            return mechanize.Browser.follow_link(self, *args, **kwargs)
+        except (mechanize.LinkNotFoundError, mechanize.BrowserStateError):
+            pass
+
     def get_unicode_data(self, url=None, response=None):
         if url:
             response = self.open(url)
@@ -58,12 +64,6 @@ class Browser(mechanize.Browser):
         except (AttributeError, IndexError):
             logger.error('failed to get the encoding at %s', response.geturl())
         return res
-
-    def follow_link(self, *args, **kwargs):
-        try:
-            return mechanize.Browser.follow_link(self, *args, **kwargs)
-        except mechanize.LinkNotFoundError:
-            pass
 
 
 class Base(object):

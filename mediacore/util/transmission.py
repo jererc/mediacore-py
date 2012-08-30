@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 import transmissionrpc
@@ -115,46 +115,47 @@ class Transmission(object):
             return
         return True
 
-    def watch(self, dst, dst_invalid=None, delta_active=None, delta_added=None, callable=None):
-        '''Watch torrents and move finished downloads to the destination.
+    def manage(self, id, dst, dst_invalid=None, delta_active=None,
+                delta_added=None):
+        '''Manage a torrent.
 
+        :param id: torrent id
         :param dst: destination root directory
         :param dst_invalid: destination directory for invalid files
-        :param delta_active: timedelta
-        :param delta_added: timedelta
-        :param callable: callable for finished downloads
+        :param delta_active: hours
+        :param delta_added: hours
         '''
-        for torrent in self.torrents():
-            if not self._check_torrent_files(torrent):
-                if torrent.progress == 100 and dst_invalid \
-                        and not self._move_torrent_files(torrent, dst_invalid):
-                    continue
-                if not self.remove(torrent.id, delete_data=True):
-                    continue
-                logger.info('removed invalid torrent "%s" (%s%% done)', torrent.name, int(torrent.progress))
+        torrent = self.get(id)
+        if not torrent:
+            return
 
-            elif torrent.progress == 100:
-                if callable and not callable(torrent):
-                    continue
+        if not self._check_torrent_files(torrent):
+            if torrent.progress == 100 and dst_invalid \
+                    and not self._move_torrent_files(torrent, dst_invalid):
+                return
+            if not self.remove(torrent.id, delete_data=True):
+                return
+            logger.info('removed invalid torrent "%s" (%s%% done)', torrent.name, int(torrent.progress))
 
-                destination = self._get_destination_dir(torrent, dst)
-                if not self._move_torrent_files(torrent, destination):
-                    continue
-                if not self.remove(torrent.id):
-                    continue
-                logger.info('removed finished torrent "%s"', torrent.name)
+        elif torrent.progress == 100:
+            destination = self._get_destination_dir(torrent, dst)
+            if not self._move_torrent_files(torrent, destination):
+                return
+            if not self.remove(torrent.id):
+                return
+            logger.info('removed finished torrent "%s"', torrent.name)
 
-            # Remove inactive torrents
-            elif delta_active:
-                date = torrent.date_active or torrent.date_added
-                if date < datetime.utcnow() - delta_active:
-                    if self.remove(torrent.id, delete_data=True):
-                        logger.info('removed inactive torrent "%s": no activity since %s', torrent.name, date)
-
-            # Remove obsolete torrents
-            elif delta_added and torrent.date_added < datetime.utcnow() - delta_added:
+        # Remove inactive torrents
+        elif delta_active:
+            date = torrent.date_active or torrent.date_added
+            if date < datetime.utcnow() - timedelta(hours=delta_active):
                 if self.remove(torrent.id, delete_data=True):
-                    logger.info('removed obsolete torrent "%s": added %s', torrent.name, torrent.date_added)
+                    logger.info('removed inactive torrent "%s": no activity since %s', torrent.name, date)
+
+        # Remove obsolete torrents
+        elif delta_added and torrent.date_added < datetime.utcnow() - timedelta(hours=delta_added):
+            if self.remove(torrent.id, delete_data=True):
+                logger.info('removed obsolete torrent "%s": added %s', torrent.name, torrent.date_added)
 
     def clean_download_directory(self):
         '''Clean download directory.

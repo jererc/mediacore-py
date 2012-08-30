@@ -1,5 +1,6 @@
 import re
 from urlparse import urljoin
+from datetime import datetime
 import logging
 
 from lxml import html
@@ -15,10 +16,16 @@ RE_EPISODE_INFO = re.compile(r'\b(\d+x\d+)\b.*\((.*?/\d+/\d+)\)', re.I)
 RE_COUNTRY = re.compile(r'>\s*(.*?)\s*\)')
 RE_YEAR = re.compile(r'\b(\d{4})\b')
 RE_SPECIAL = re.compile(r'\(.*?special.*?\)', re.I)
+RE_CURRENT_SHOWS = re.compile(r'current shows', re.I)
 
 
 logger = logging.getLogger(__name__)
 
+
+def get_year(val):
+    res = RE_YEAR.search(val)
+    if res:
+        return int(res.group(1))
 
 class Tvrage(Base):
     URL = 'http://www.tvrage.com'
@@ -66,6 +73,7 @@ class Tvrage(Base):
             links = div.cssselect('a')
             try:
                 info['network'] = clean(links[1].text, 1)
+                info['url_network'] = urljoin(self.url, links[1].get('href'))
             except Exception:
                 info['network'] = None
 
@@ -86,11 +94,68 @@ class Tvrage(Base):
 
             info['classification'] = clean(info_.get('classification', '').lower())
             info['genre'] = [clean(g, 1) for g in re.split(r'\s*\|\s*', info_.get('genre', ''))]
-            res = RE_YEAR.search(info_.get('premiere', ''))
-            if res:
-                info['date'] = int(res.group(1))
+            year = get_year(info_.get('premiere', ''))
+            if year:
+                info['date'] = year
 
         return info
+
+    def _get_current_shows_url(self, url):
+        res = self.browser.open(url)
+        if not res:
+            return
+        for link in self.browser.links(text_regex=RE_CURRENT_SHOWS):
+            return link.absolute_url
+
+    def get_similar(self, query, years_delta=None):
+        info = self.get_info(query)
+        if not info:
+            return
+
+        url = info.get('url_network')
+        if not url:
+            return
+        url = self._get_current_shows_url(url)
+        if not url:
+            return
+        data = self._get_data(url)
+        if not data:
+            return
+
+        res = []
+
+        tree = html.fromstring(data)
+        for tr in tree.cssselect('table.b tr#brow'):
+            log = html.tostring(tr, pretty_print=True)
+
+            try:
+                classification = clean(tr[2].cssselect('td')[0].text).lower()
+            except Exception:
+                logger.error('failed to get classification from %s', log)
+                continue
+            if classification != info.get('classification'):
+                continue
+
+            info_ = {}
+            try:
+                link = tr[0].cssselect('a')[0]
+                info_['title'] = clean(link.text, 1)
+                info_['url'] = urljoin(self.url, link.get('href'))
+            except Exception:
+                logger.error('failed to get title from %s', log)
+            if info_['title'] == clean(query, 1):
+                continue
+
+            try:
+                info_['date'] = get_year(tr[1].cssselect('td')[0].text)
+            except Exception:
+                logger.error('failed to get date from %s', log)
+            if years_delta is not None and abs(datetime.now().year - info_['date']) > years_delta:
+                continue
+
+            res.append(info_)
+
+        return res
 
     def scheduled_shows(self):
         data = self._get_data(URL_SCHEDULE)
