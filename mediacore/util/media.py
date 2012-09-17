@@ -499,9 +499,12 @@ class Archive(File):
             elif res == 1:
                 logger.error('command "%s" timed out', cmd)
         except pexpect.ExceptionPexpect:
-            logger.exception('exception')
+            pass
         finally:
-            session.terminate(force=True)   # clean open process
+            try:
+                session.terminate(force=True)   # clean open process
+            except pexpect.ExceptionPexpect:
+                pass
 
     def get_multipart_files(self):
         '''Get multipart archive files
