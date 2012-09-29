@@ -8,10 +8,12 @@ from mediacore.web import Base
 from mediacore.util.title import Title, clean
 
 
+MIN_ALBUM_TRACKS = 4
+MAX_SIMILAR_PAGES = 10
 RE_ARTISTS = re.compile(r'more artists', re.I)
 RE_ALBUMS = re.compile(r'top albums', re.I)
 RE_SIMILAR = re.compile(r'similar artists', re.I)
-RE_DATE_ALBUM = re.compile(r'\b(\d{4})\s*$')
+RE_DATE_ALBUM = re.compile(r'^\b(\d{4})\b')
 RE_MORE_TAGS = re.compile(r'more tags', re.I)
 
 
@@ -38,8 +40,6 @@ class Lastfm(Base):
 
     def _get_artist_url(self, query):
         url = self._get_results_url(query)
-        # if not url:
-        #     return
         data = self.browser.get_unicode_data(url=url)
         if not data:
             return
@@ -101,7 +101,7 @@ class Lastfm(Base):
             return
 
         tree = html.fromstring(data)
-        for tag in tree.cssselect('.albums li .resContainer'):
+        for tag in tree.cssselect('.albums li .album-item-detail-wrapper'):
             log = html.tostring(tag, pretty_print=True)
 
             info_album = {}
@@ -120,16 +120,30 @@ class Lastfm(Base):
             except Exception:
                 logger.error('failed to get album url from %s', log)
 
-            details = tag.cssselect('.label')
-            if details:
-                details = html.tostring(details[0])
-                try:
-                    date = RE_DATE_ALBUM.search(clean(details.split('<br>')[0]))
-                    info_album['date'] = int(date.group(1))
-                except Exception:
-                    pass
+            date_tags = tag.cssselect('time')
+            if not date_tags:
+                continue
+            try:
+                date = RE_DATE_ALBUM.search(date_tags[0].get('datetime'))
+                info_album['date'] = int(date.group(1))
+            except Exception:
+                continue
+
+            # Check nb tracks
+            tracks_tags = tag.cssselect('[itemprop="numTracks"]')
+            if not tracks_tags:
+                continue
+            try:
+                nb_tracks = int(tracks_tags[0].text)
+            except ValueError:
+                continue
+            if nb_tracks < MIN_ALBUM_TRACKS:
+                continue
 
             info['albums'].append(info_album)
+
+        if not info['albums']:
+            logger.debug('failed to get albums from "%s"', query)
 
         return info
 
@@ -156,20 +170,25 @@ class Lastfm(Base):
         elif RE_SIMILAR.search(links[0].text):
             return urljoin(self.url, links[0].get('href'))
 
+    def _similar_artists(self, url):
+        for i in range(MAX_SIMILAR_PAGES):
+            data = self.browser.get_unicode_data(url=url)
+            if not data:
+                return
+
+            tree = html.fromstring(data)
+            for tag in tree.cssselect('.artistsWithInfo li'):
+                links = tag.cssselect('a')
+                if links:
+                    yield clean(self.get_link_text(html.tostring(links[0])), 1)
+
+            next_link = tree.cssselect('.pagination .nextlink')
+            if not next_link:
+                return
+            url = urljoin(self.url, next_link[0].get('href'))
+
     def get_similar(self, query):
         '''Get similar artists.
         '''
         url = self._get_similar_url(query)
-        data = self.browser.get_unicode_data(url=url)
-        if not data:
-            return
-
-        artists = []
-        tree = html.fromstring(data)
-        for tag in tree.cssselect('.artistsWithInfo li'):
-            links = tag.cssselect('a')
-            if links:
-                artist = clean(self.get_link_text(html.tostring(links[0])), 1)
-                artists.append(artist)
-
-        return artists
+        return list(self._similar_artists(url))
