@@ -6,7 +6,9 @@ import logging
 from lxml import html
 
 from mediacore.web import Base
-from mediacore.util.title import clean
+
+
+RE_DATE = re.compile(r'\d{2}-\d{2} \d{4}')
 
 
 logger = logging.getLogger(__name__)
@@ -41,27 +43,25 @@ class Vcdquality(Base):
     def results(self, pages_max=1):
         for page, data in self._pages(pages_max):
             tree = html.fromstring(data)
-            for tr in tree.cssselect('tbody:not([id]) tr'):
-                try:
-                    title = tr.get_element_by_id('titleField')
-                except Exception:
-                    continue
 
+            tbodys = tree.cssselect('#searchResult tbody')
+            if not tbodys:
+                logger.error('failed to get results')
+                continue
+
+            for tr in tbodys[-1].cssselect('tr'):
                 log = html.tostring(tr, pretty_print=True)
 
-                try:
-                    release = title.cssselect('a')[0].text
-                except Exception:
-                    logger.error('failed to get title from %s', log)
+                tags = tr.cssselect('.titleField a')
+                if not tags:
                     continue
-                result = {'release': release}
+                result = {'release': tags[0].text}
 
-                try:
-                    date = clean(tr.get_element_by_id('dateField').text)
-                    result['date'] = datetime.strptime(date, '%m-%d %Y')
-                except Exception:
+                res = RE_DATE.findall(html.tostring(tr))
+                if not res:
                     logger.error('failed to get date from %s', log)
                     continue
+                result['date'] = datetime.strptime(res[0], '%m-%d %Y')
 
                 result['page'] = page
                 yield result
