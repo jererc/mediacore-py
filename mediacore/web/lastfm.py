@@ -135,7 +135,8 @@ class Lastfm(Base):
 
         url_albums = urljoin(self.url, links[0].get('href'))
         for info_album in self._artist_albums(url_albums):
-            info_album['genre'] = info['genre']
+            if info.get('genre'):
+                info_album['genre'] = info['genre']
             info['albums'].append(info_album)
 
         return info
