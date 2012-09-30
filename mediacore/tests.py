@@ -14,13 +14,13 @@ from mediacore.util.title import Title, clean, get_episode_info
 from mediacore.util.transmission import Transmission
 
 from mediacore.model import Base
-from mediacore.model.search import Search
 
 from mediacore.web.google import Google
 from mediacore.web.imdb import Imdb
 from mediacore.web.tvrage import Tvrage
 from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.sputnikmusic import Sputnikmusic
+from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
 
 from mediacore.web import torrent
@@ -41,11 +41,9 @@ TVSHOW_SEASON = '5'
 TVSHOW_EPISODE = '06'
 TVSHOW_YEAR = 2007
 
-# ANIME = 'bleach'
-
-BAND = 'radiohead'
-ALBUM = 'ok computer'
-ALBUM_YEAR = 1997
+BAND = 'breach'
+ALBUM = 'kollapse'
+ALBUM_YEAR = 2001
 
 OPENSUBTITLES_LANG = 'eng'
 
@@ -70,9 +68,7 @@ def mkdtemp(dir='/tmp'):
 #
 # System
 #
-
 # TODO: add system requirements tests
-
 class TransmissionTest(unittest.TestCase):
 
     def setUp(self):
@@ -91,7 +87,6 @@ class TransmissionTest(unittest.TestCase):
 #
 # Title
 #
-
 # TODO
 # class TitleCleanTest(unittest.TestCase):
 
@@ -135,15 +130,15 @@ class TitleMovieTest(unittest.TestCase):
         for title, name, season, episode, episode_alt, rip in self.fixtures:
             res = get_episode_info(title)
 
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     def test_title(self):
         for title, name, season, episode, episode_alt, rip in self.fixtures:
             res = Title(title)
 
-            self.assertEquals(res.name, name)
-            self.assertEquals(res.season, season)
-            self.assertEquals(res.episode, episode)
+            self.assertEqual(res.name, name)
+            self.assertEqual(res.season, season)
+            self.assertEqual(res.episode, episode)
 
 
 class TitleTvTest(unittest.TestCase):
@@ -151,57 +146,57 @@ class TitleTvTest(unittest.TestCase):
     def setUp(self):
         self.fixtures = [
             ('show name s03e02 HDTV XviD TEAM',
-                'show name', '3', '02', '', ' HDTV XviD TEAM'),
+                'show name', '3', '02', '', ' HDTV XviD TEAM', '3', '02'),
             ('Show Name S03E02 HDTV XviD TEAM',
-                'show name', '3', '02', '', ' HDTV XviD TEAM'),
+                'show name', '3', '02', '', ' HDTV XviD TEAM', '3', '02'),
             ('show name s03e02-03 HDTV XviD TEAM',
-                'show name', '3', '02', '', '-03 HDTV XviD TEAM'),
+                'show name', '3', '02', '', '-03 HDTV XviD TEAM', '3', '02'),
             ('show name s03e02',
-                'show name', '3', '02', '', ''),
+                'show name', '3', '02', '', '', '3', '02'),
             ('show name 3x02',
-                'show name', '3', '02', '', ''),
+                'show name', '3', '02', '', '', '3', '02'),
             ('show name 11 3x02',
-                'show name 11', '3', '02', '', ''),
+                'show name 11', '3', '02', '', '', '3', '02'),
             ('show name 11 3X02',
-                'show name 11', '3', '02', '', ''),
+                'show name 11', '3', '02', '', '', '3', '02'),
             ('show name 111 3x02',
-                'show name 111', '3', '02', '', ''),
+                'show name 111', '3', '02', '', '', '3', '02'),
             ('show name 102 1998 3x02',
-                'show name 102 1998', '3', '02', '', ''),
+                'show name 102 1998', '3', '02', '', '', '3', '02'),
             ('show name 1998-2008 3x02',
-                'show name 1998 2008', '3', '02', '', ''),
+                'show name 1998 2008', '3', '02', '', '', '3', '02'),
             ('show name 302',
-                'show name', '3', '02', '302', ''),
+                'show name', '3', '02', '302', '', '', '302'),
             ('show name 11 302',
-                'show name 11', '3', '02', '302', ''),
+                'show name 11', '3', '02', '302', '', '', '302'),
             ('show name part 2 HDTV XviD TEAM',
-                'show name', '', '2', '', ' HDTV XviD TEAM'),
+                'show name', '', '2', '', ' HDTV XviD TEAM', '', '2'),
             ('show name part2 HDTV XviD TEAM',
-                'show name', '', '2', '', ' HDTV XviD TEAM'),
+                'show name', '', '2', '', ' HDTV XviD TEAM', '', '2'),
 
             ('anime name 002',
-                'anime name', '', '02', '002', ''),
+                'anime name', '', '02', '002', '', '', '002'),
             ('anime name 02',
-                'anime name', '', '02', '02', ''),
+                'anime name', '', '02', '02', '', '', '02'),
             ('anime name 302',
-                'anime name', '3', '02', '302', ''),
+                'anime name', '3', '02', '302', '', '', '302'),
             ('Naruto_Shippuuden_-_261_[480p]',
-                'naruto shippuuden', '2', '61', '261', ' [480p]'),
+                'naruto shippuuden', '2', '61', '261', ' [480p]', '', '261'),
             ]
 
     def test_episode_info(self):
-        for title, name, season, episode, episode_alt, rip in self.fixtures:
+        for title, name, season, episode, episode_alt, rip, real_season, real_episode in self.fixtures:
             res = get_episode_info(title)
 
-            self.assertEquals(res, (name, season, episode, episode_alt, rip))
+            self.assertEqual(res, (name, season, episode, episode_alt, rip))
 
     def test_title(self):
-        for title, name, season, episode, episode_alt, rip in self.fixtures:
+        for title, name, season, episode, episode_alt, rip, real_season, real_episode in self.fixtures:
             res = Title(title)
 
-            self.assertEquals(res.name, name)
-            self.assertEquals(res.season, season)
-            self.assertEquals(res.episode, episode)
+            self.assertEqual(res.name, name)
+            self.assertEqual(res.season, real_season)
+            self.assertEqual(res.episode, real_episode)
 
 
 class PreviousEpisodeTest(unittest.TestCase):
@@ -212,54 +207,15 @@ class PreviousEpisodeTest(unittest.TestCase):
             ('show name s01e03', '1', '02'),
             ('show name 1x01', '1', '00'),
             ('show name s02e01', '2', '00'),
-            ('show name 123', '1', '22'),
-            ('show name 100', '0', '99'),
+            ('show name 123', '', '122'),
+            ('show name 100', '', '099'),
             ]
 
     def test_previous_episode(self):
         for query, season, episode in self.fixtures:
             res = Title(query)._get_prev_episode()
 
-            self.assertEquals(res, (season, episode))
-
-
-class SearchQueryTest(unittest.TestCase):
-
-    def setUp(self):
-        self.fixtures = [
-            ('show name',
-                None, None),
-            ('show name 2012',
-                None, None),
-            ('show name 20x12',
-                'show name 20x13', 'show name 21x01'),
-            ('show name s03e02',
-                'show name 3x03', 'show name 4x01'),
-            ('show name 11x03',
-                'show name 11x04', 'show name 12x01'),
-            ('show name 23 1x02',
-                'show name 23 1x03', 'show name 23 2x01'),
-
-            ('anime name 009',
-                'anime name 010', None),
-            ('anime name 02',
-                'anime name 03', None),
-            ('anime name 99',
-                'anime name 100', None),
-            ('anime name 132',
-                'anime name 133', None),
-            ('anime name 299',
-                'anime name 300', None),
-            ]
-
-    def test_episode_info(self):
-        for query, query_next_episode, query_next_season in self.fixtures:
-
-            res = Search().get_next_episode(query)
-            self.assertEquals(query_next_episode, res)
-
-            res = Search().get_next_season(query)
-            self.assertEquals(query_next_season, res)
+            self.assertEqual(res, (season, episode))
 
 
 class TitleSearchTest(unittest.TestCase):
@@ -337,7 +293,6 @@ class TitleSearchTest(unittest.TestCase):
 #
 # Model
 #
-
 @unittest.skipIf(not db_ok, 'not connected to the right database')
 class ModelTest(unittest.TestCase):
 
@@ -350,14 +305,14 @@ class ModelTest(unittest.TestCase):
         self.doc = {'field': 'value'}
 
     def test_db_name(self):
-        self.assertEquals(Base().col.database.name, DB_TESTS)
+        self.assertEqual(Base().col.database.name, DB_TESTS)
 
     def test_insert(self):
         Base().insert(self.doc)
 
         res = get_db()[self.col].find()
-        self.assertEquals(res.count(), 1)
-        self.assertEquals(res[0], self.doc)
+        self.assertEqual(res.count(), 1)
+        self.assertEqual(res[0], self.doc)
 
     def test_find(self):
         doc1 = {'some_field': 'some_value'}
@@ -366,7 +321,7 @@ class ModelTest(unittest.TestCase):
         get_db()[self.col].insert(doc2)
 
         res = Base().find()
-        self.assertEquals(res.count(), 2)
+        self.assertEqual(res.count(), 2)
         self.assertTrue(doc1 in res)
         self.assertTrue(doc2 in res)
 
@@ -374,50 +329,13 @@ class ModelTest(unittest.TestCase):
         get_db()[self.col].insert(self.doc)
 
         res = Base().find()
-        self.assertEquals(res.count(), 1)
-        self.assertEquals(res[0], self.doc)
-
-
-@unittest.skipIf(not db_ok, 'not connected to the right database')
-class ModelSearchTest(unittest.TestCase):
-
-    def setUp(self):
-        Search().drop()
-
-    def test_add_search(self):
-        q = 'query'
-        category = 'category'
-
-        Search().add(q, category=category)
-
-        res = Search().find_one()
-        self.assertEqual(res['q'], q)
-        self.assertEqual(res['category'], category)
-        self.assertEqual(res['mode'], 'once')
-        self.assertEqual(res['langs'], [])
-
-    def test_add_search_extra_parameters(self):
-        q = 'query'
-        category = 'category'
-        url_info = 'http://url.info'
-        release_id = '1' * 24
-
-        Search().add(q, category=category, url_info=url_info,
-                release_id=release_id)
-
-        res = Search().find_one()
-        self.assertEqual(res['q'], q)
-        self.assertEqual(res['category'], category)
-        self.assertEqual(res['mode'], 'once')
-        self.assertEqual(res['langs'], [])
-        self.assertEqual(res['url_info'], url_info)
-        self.assertEqual(res['release_id'], release_id)
+        self.assertEqual(res.count(), 1)
+        self.assertEqual(res[0], self.doc)
 
 
 #
 # Web
 #
-
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class GoogleTest(unittest.TestCase):
 
@@ -433,7 +351,7 @@ class GoogleTest(unittest.TestCase):
             for key in ('title', 'url', 'page'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
-        self.assertEquals(res[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1]['page'], self.pages_max, GENERIC_QUERY))
+        self.assertEqual(res[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1]['page'], self.pages_max, GENERIC_QUERY))
 
     def test_get_nb_results(self):
         res = self.google.get_nb_results(GENERIC_QUERY)
@@ -451,7 +369,7 @@ class ImdbTest(unittest.TestCase):
         res = self.object.get_info(MOVIE)
         self.assertTrue(res, 'failed to get info for "%s"' % MOVIE)
 
-        self.assertEquals(res.get('date'), MOVIE_YEAR)
+        self.assertEqual(res.get('date'), MOVIE_YEAR)
         self.assertTrue(MOVIE_DIRECTOR in res.get('director'), 'failed to get director for %s: %s' % (MOVIE, res.get('director')))
 
         for key in ('url', 'rating', 'country', 'genre', 'runtime', 'stars', 'url_thumbnail'):
@@ -465,7 +383,7 @@ class ImdbTest(unittest.TestCase):
         res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
-        self.assertEquals(res.get('date'), movie_year)
+        self.assertEqual(res.get('date'), movie_year)
         self.assertTrue(movie_director in res.get('director'), 'failed to get director for %s: %s' % (movie, res.get('director')))
 
     def test_get_info_movie_with_year_old(self):
@@ -476,7 +394,7 @@ class ImdbTest(unittest.TestCase):
         res = self.object.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
-        self.assertEquals(res.get('date'), movie_year)
+        self.assertEqual(res.get('date'), movie_year)
         self.assertTrue(movie_director in res.get('director'), 'failed to get director for %s: %s' % (movie, res.get('director')))
 
 
@@ -490,7 +408,7 @@ class TvrageTest(unittest.TestCase):
         res = self.object.get_info(TVSHOW)
         self.assertTrue(res, 'failed to get info for "%s"' % TVSHOW)
 
-        self.assertEquals(res.get('date'), TVSHOW_YEAR)
+        self.assertEqual(res.get('date'), TVSHOW_YEAR)
 
         for key in ('date', 'status', 'classification', 'runtime', 'network',
                 'latest_episode', 'url', 'country', 'date', 'airs',
@@ -571,11 +489,11 @@ class SputnikmusicTest(unittest.TestCase):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
 
     def test_get_album_info(self):
-        res = self.object.get_album_info(self.artist, self.album)
+        res = self.object.get_info(self.artist, self.album)
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
-        self.assertEquals(res.get('name'), self.album.lower())
-        self.assertEquals(res.get('date'), self.album_year)
+        self.assertEqual(res.get('name'), self.album.lower())
+        self.assertEqual(res.get('date'), self.album_year)
 
         for key in ('rating', 'url', 'url_cover'):
             self.assertTrue(res.get(key), 'failed to get %s for artist "%s" album "%s"' % (key, self.artist, self.album))
@@ -587,6 +505,31 @@ class SputnikmusicTest(unittest.TestCase):
         for release in res:
             for key in ('artist', 'album', 'rating', 'date', 'url_review', 'url_thumbnail'):
                 self.assertTrue(release.get(key), 'failed to get review %s from %s' % (key, release))
+
+
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class LastfmTest(unittest.TestCase):
+
+    def setUp(self):
+        self.object = Lastfm()
+        self.artist = BAND
+        self.album = ALBUM
+        self.album_year = ALBUM_YEAR
+
+    def test_get_info(self):
+        res = self.object.get_info(self.artist)
+        self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
+
+        for key in ('url_band', 'albums'):
+            self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
+
+    def test_get_album_info(self):
+        res = self.object.get_info(self.artist, self.album)
+        self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
+
+        self.assertEqual(res.get('name'), self.album.lower())
+        self.assertEqual(res.get('date'), self.album_year)
+        self.assertTrue(res.get('url'))
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
@@ -604,13 +547,12 @@ class VcdqualityTest(unittest.TestCase):
             for key in ('release', 'date', 'page'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
-        self.assertEquals(res[-1]['page'], self.pages_max, 'failed to get all results pages: last result page (%s) != max pages (%s)' % (res[-1]['page'], self.pages_max))
+        self.assertEqual(res[-1]['page'], self.pages_max, 'failed to get all results pages: last result page (%s) != max pages (%s)' % (res[-1]['page'], self.pages_max))
 
 
 #
 # Torrent
 #
-
 class MagnetUrlTest(unittest.TestCase):
 
     def setUp(self):
@@ -621,34 +563,31 @@ class MagnetUrlTest(unittest.TestCase):
         res = torrent.parse_magnet_url(url)
 
         self.assertTrue(isinstance(res, dict))
-        self.assertEquals(res.get('dn'), ['TITLE'])
-        self.assertEquals(res.get('key'), ['VALUE'])
+        self.assertEqual(res.get('dn'), ['TITLE'])
+        self.assertEqual(res.get('key'), ['VALUE'])
 
     def test_parse_multiple(self):
         url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE1&key=VALUE2&key=VALUE3'
         res = torrent.parse_magnet_url(url)
 
         self.assertTrue(isinstance(res, dict))
-        self.assertEquals(res.get('dn'), ['TITLE'])
-        self.assertEquals(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
+        self.assertEqual(res.get('dn'), ['TITLE'])
+        self.assertEqual(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class TorrentSearchTest(unittest.TestCase):
 
     def setUp(self):
+        self.objects = [
+            ('thepiratebay', Thepiratebay()),
+            ('torrentz', Torrentz()),
+            # ('isohunt', Isohunt()),
+            ]
         self.pages_max = 3
 
-    def tearDown(self):
-        pass
-
     def test_plugins_results(self):
-        for obj_name, obj in [
-                ('thepiratebay', Thepiratebay()),
-                ('torrentz', Torrentz()),
-                # ('isohunt', Isohunt()),
-                ]:
-
+        for obj_name, obj in self.objects:
             res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
             self.assertTrue(res, 'failed to find results for "%s" with %s' % (GENERIC_QUERY, obj_name))
 
@@ -666,14 +605,10 @@ class TorrentSearchTest(unittest.TestCase):
 
             self.assertTrue(seeds_count > len(res) * 2 / 3)
 
-            self.assertEquals(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s" with %s' % (res[-1].page, self.pages_max, GENERIC_QUERY, obj_name))
+            self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s" with %s' % (res[-1].page, self.pages_max, GENERIC_QUERY, obj_name))
 
     def test_plugins_results_sort(self):
-        for obj_name, obj in [
-                ('thepiratebay', Thepiratebay()),
-                ('torrentz', Torrentz()),
-                # ('isohunt', Isohunt()),
-                ]:
+        for obj_name, obj in self.objects:
             for sort in ('age', 'seeds'):
 
                 if sort == 'seeds' and obj_name == 'torrentz':  # not really sorted by seeds...
@@ -716,7 +651,7 @@ class TorrentSearchTest(unittest.TestCase):
 
         self.assertTrue(seeds_count > len(res) * 2 / 3)
 
-        self.assertEquals(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1].page, self.pages_max, GENERIC_QUERY))
+        self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1].page, self.pages_max, GENERIC_QUERY))
 
 
 if __name__ == '__main__':
