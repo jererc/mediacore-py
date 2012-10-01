@@ -144,7 +144,7 @@ class Thepiratebay(Base):
                 try:
                     result.date = self._get_date(date)
                 except Exception, e:
-                    logger.error('failed to get date from "%s": %s', date, e)
+                    logger.error('failed to get date from "%s": %s', date, str(e))
                     continue
 
                 try:

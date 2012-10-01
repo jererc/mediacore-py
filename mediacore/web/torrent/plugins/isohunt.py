@@ -157,7 +157,7 @@ class Isohunt(Base):
                 try:
                     result.date = self._get_date(clean(html.tostring(tr[1])))
                 except Exception, e:
-                    logger.error('failed to get date from %s: %s', log, e)
+                    logger.error('failed to get date from %s: %s', log, str(e))
                     continue
                 try:
                     result.seeds = int(tr[4].text)

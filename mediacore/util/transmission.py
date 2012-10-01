@@ -30,7 +30,7 @@ class Transmission(object):
             self.download_dir = self.client.get_session().download_dir
         except Exception, e:
             self.logged = False
-            logger.error('failed to connect to transmission rpc server %s:%s: %s', host, port, e)
+            logger.error('failed to connect to transmission rpc server %s:%s: %s', host, port, str(e))
 
     def torrents(self):
         '''Iterate torrents.
@@ -78,7 +78,7 @@ class Transmission(object):
         except Exception, e:
             if RE_DUPLICATE.search(e.message):
                 raise TorrentExists('url %s is already queued' % url)
-            raise TransmissionError('failed to add url %s: %s' % (repr(url), e))
+            raise TransmissionError('failed to add url %s: %s' % (repr(url), str(e)))
 
         if os.path.isfile(url) and delete_torrent:
             mmedia.remove_file(url)
@@ -241,6 +241,6 @@ class Transmission(object):
                     logger.info('imported torrent file %s', filename)
                 except TorrentExists, e:
                     mmedia.remove_file(file.file)
-                    logger.info('removed torrent file %s: %s', filename, e)
+                    logger.info('removed torrent file %s: %s', filename, str(e))
                 except TransmissionError, e:
-                    logger.error('failed to import torrent file %s: %s', filename, e)
+                    logger.error('failed to import torrent file %s: %s', filename, str(e))

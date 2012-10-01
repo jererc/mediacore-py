@@ -40,7 +40,7 @@ class Browser(mechanize.Browser):
         except (IncompleteRead, BadStatusLine, URLError,
                 socket.gaierror, socket.error, socket.timeout,
                 mechanize.BrowserStateError), e:
-            logger.debug('request failed for %s, %s: %s', args, kwargs, e)
+            logger.debug('request failed for %s, %s: %s', args, kwargs, str(e))
         except Exception:
             logger.exception('exception')
 
@@ -130,7 +130,7 @@ class Base(object):
             try:
                 self.browser[key] = val
             except Exception:
-                logger.error('failed to set form field "%s" for form %s', key, self.browser)
+                logger.error('failed to set form field "%s" for form %s', key, str(self.browser))
 
         return self.browser.submit()
 

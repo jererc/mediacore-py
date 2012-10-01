@@ -191,9 +191,8 @@ def results(query, **kwargs):
             for result in obj.results(query_, **kwargs):
                 result.net_name = net
                 yield result
-
         except TorrentError, e:
-            logger.error('error with %s: %s', net, e)
+            logger.error('error with %s: %s', net, str(e))
             yield None
 
 def parse_magnet_url(url):
