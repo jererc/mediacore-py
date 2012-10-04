@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class Imdb(Base):
     URL = 'http://www.imdb.com'
+    ROBUST_FACTORY = True
 
     def _get_urls(self, query, type='title'):
         self.browser.addheaders = [('Accept-Language', 'en-US,en')]

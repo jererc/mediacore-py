@@ -154,9 +154,8 @@ def _get_net_object(net):
         try:
             object_ = getattr(module_, net.capitalize())()
         except Exception:
-            logger.error('failed to create %s object', net.capitalize())
+            logger.error('failed to get %s object', net.capitalize())
             return
-
         if object_.url:
             return object_
 
@@ -180,6 +179,7 @@ def results(query, **kwargs):
     for net in nets:
         obj = _get_net_object(net)
         if not obj:
+            yield None
             continue
 
         query_ = get_query(query, kwargs.get('category'))
