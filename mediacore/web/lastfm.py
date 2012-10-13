@@ -179,10 +179,8 @@ class Lastfm(Base):
                 return
 
             tree = html.fromstring(data)
-            for tag in tree.cssselect('.artistsWithInfo li'):
-                links = tag.cssselect('a')
-                if links:
-                    yield clean(self.get_link_text(html.tostring(links[0])), 1)
+            for tag in tree.cssselect('.link-reference h3'):
+                yield clean(tag.text, 1)
 
     def get_similar(self, query):
         '''Get similar artists.

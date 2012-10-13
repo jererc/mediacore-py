@@ -6,7 +6,7 @@ import logging
 from lxml import html
 
 from mediacore.web import Base, Browser
-from mediacore.web.search import Result, DownloadError
+from mediacore.web.search import Result, SearchError
 from mediacore.util.title import Title, clean, is_url
 from mediacore.util.util import parse_magnet_url, RE_URL_MAGNET
 
@@ -64,7 +64,7 @@ class Torrentz(Base):
                 if not data:
                     if page > 1:
                         return
-                    raise DownloadError('no data')
+                    raise SearchError('no data')
 
                 yield page, data
 

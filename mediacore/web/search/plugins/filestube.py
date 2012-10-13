@@ -5,7 +5,7 @@ import logging
 from lxml import html
 
 from mediacore.web import Base
-from mediacore.web.search import Result, DownloadError
+from mediacore.web.search import Result, SearchError
 from mediacore.util.title import clean, get_size
 
 
@@ -61,7 +61,7 @@ class Filestube(Base):
 
         links = list(self.browser.links(text_regex=RE_ADVANCED_SEARCH))
         if not links:
-            raise DownloadError('failed to find advanced search link')
+            raise SearchError('failed to find advanced search link')
         url = links[0].absolute_url
 
         tree = None
@@ -78,7 +78,7 @@ class Filestube(Base):
                 data = self.browser.get_unicode_data(url=url)
 
             if not data:
-                raise DownloadError('no data')
+                raise SearchError('no data')
 
             tree = html.fromstring(data)
             for div in tree.cssselect('div#newresult'):

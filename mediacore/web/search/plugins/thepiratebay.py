@@ -5,7 +5,7 @@ import logging
 from lxml import html
 
 from mediacore.web import Base
-from mediacore.web.search import Result, DownloadError
+from mediacore.web.search import Result, SearchError
 from mediacore.util.title import clean, is_url
 
 
@@ -69,9 +69,9 @@ class Thepiratebay(Base):
                 if not data:
                     if page > 1:
                         return
-                    raise DownloadError('no data')
+                    raise SearchError('no data')
                 elif RE_OVERLOAD.search(data):
-                    raise DownloadError('overload')
+                    raise SearchError('overload')
 
                 yield page, data
 
