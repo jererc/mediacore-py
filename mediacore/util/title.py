@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from urlparse import urlparse
+import logging
 
 from lxml import html
 
@@ -14,6 +15,7 @@ RE_EPISODE_LIST = [
     re.compile(r'\b(()(\d{1,2}))\b', re.I),
     ]
 RE_AUDIO = re.compile(r'^((.*?)[\W_]*-[\W_]*(.*)|(\d{2,3})[\W_]*-[\W_]*(.*?)[\W_]*-[\W_]*(.*))$', re.I)
+RE_SIZE = re.compile(r'^([\d\.]+)\W*\s*([gmk])?i?b?\s*$', re.I)
 LIST_JUNK_SEARCH = ['the', 'a', 'and', 's', 'le', 'la', 'un', 'une', 'us']
 PATTERN_SEP_EXTRA = '([\(\[][^\)\]]*[\)\]])'
 PATTERN_SEP_JUNK = '(%s)' % '|'.join(LIST_JUNK_SEARCH)
@@ -35,6 +37,8 @@ PATTERNS_LANGS = {
     'ar': r'(subs?)?arab(ic)?([\W_]*subs?(titles)?)?',
     }
 LANG_DEFAULT = 'en'     # default language when none found
+
+logger = logging.getLogger(__name__)
 
 
 def _clean_special(val):
@@ -183,6 +187,24 @@ def get_capitalized(val):
 def is_url(val):
     if urlparse(val).scheme:
         return True
+
+def get_size(val):
+    '''Get the size in MB.
+    '''
+    res = RE_SIZE.search(val)
+    if not res:
+        logger.error('failed to get result size from "%s"', val)
+        return
+
+    size, unit = res.groups()
+    size = float(size)
+    if not unit:
+        size /= (1024 * 1024)
+    elif unit.lower() == 'k':
+        size /= 1024
+    elif unit.lower() == 'g':
+        size *= 1024
+    return size
 
 
 class Title(object):

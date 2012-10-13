@@ -23,10 +23,10 @@ from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
 
-from mediacore.web import torrent
-from mediacore.web.torrent.plugins.thepiratebay import Thepiratebay
-from mediacore.web.torrent.plugins.torrentz import Torrentz
-from mediacore.web.torrent.plugins.isohunt import Isohunt
+from mediacore.web.search import results
+from mediacore.web.search.plugins.thepiratebay import Thepiratebay
+from mediacore.web.search.plugins.torrentz import Torrentz
+from mediacore.web.search.plugins.filestube import Filestube
 
 
 DB_TESTS = 'test'
@@ -582,7 +582,6 @@ class TorrentSearchTest(unittest.TestCase):
         self.objects = [
             ('thepiratebay', Thepiratebay()),
             ('torrentz', Torrentz()),
-            # ('isohunt', Isohunt()),
             ]
         self.pages_max = 3
 
@@ -605,25 +604,25 @@ class TorrentSearchTest(unittest.TestCase):
 
             self.assertTrue(seeds_count > len(res) * 2 / 3)
 
-            self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s" with %s' % (res[-1].page, self.pages_max, GENERIC_QUERY, obj_name))
+            # self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s" with %s' % (res[-1].page, self.pages_max, GENERIC_QUERY, obj_name))
 
     def test_plugins_results_sort(self):
         for obj_name, obj in self.objects:
-            for sort in ('age', 'seeds'):
+            for sort in ('date', 'popularity'):
 
-                if sort == 'seeds' and obj_name == 'torrentz':  # not really sorted by seeds...
+                if sort == 'popularity' and obj_name == 'torrentz':  # not really sorted by seeds...
                     continue
 
                 val_prev = None
                 for res in obj.results(GENERIC_QUERY, sort=sort, pages_max=2):
 
-                    if sort == 'age':
+                    if sort == 'date':
                         val = res.date
                         if val_prev:
                             self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s is not older than %s with %s' % (val, val_prev, obj_name))
                         val_prev = val
 
-                    elif sort == 'seeds':
+                    elif sort == 'popularity':
                         val = res.seeds
                         if val_prev:
                             self.assertTrue(val <= val_prev, '%s is not less than %s with %s' % (val, val_prev, obj_name))
@@ -637,7 +636,7 @@ class TorrentSearchTest(unittest.TestCase):
         for r in res:
             self.assertTrue(r)
 
-            for key in ('net_name', 'title', 'category', 'size', 'page'):
+            for key in ('plugin', 'title', 'category', 'size'):
                 self.assertTrue(r.get(key) is not None, 'failed to get %s from %s' % (key, r))
 
             url = r.get('url_magnet') or r.get('url_torrent')
@@ -651,7 +650,7 @@ class TorrentSearchTest(unittest.TestCase):
 
         self.assertTrue(seeds_count > len(res) * 2 / 3)
 
-        self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1].page, self.pages_max, GENERIC_QUERY))
+        # self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1].page, self.pages_max, GENERIC_QUERY))
 
 
 if __name__ == '__main__':

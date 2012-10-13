@@ -17,7 +17,6 @@ RE_SIMILAR = re.compile(r'similar artists', re.I)
 RE_DATE_ALBUM = re.compile(r'^\b(\d{4})\b')
 RE_MORE_TAGS = re.compile(r'more tags', re.I)
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +54,14 @@ class Lastfm(Base):
                     return urljoin(self.url, self._clean_url(links[0].get('href')))
 
     def _artist_albums(self, url):
+        tree = None
         for i in range(MAX_ALBUMS_PAGES):
+            if tree is not None:
+                links = tree.cssselect('.pagination .nextlink')
+                if not links or not self.check_next_link(links[-1]):
+                    return
+                url = urljoin(self.url, links[-1].get('href'))
+
             data = self.browser.get_unicode_data(url=url)
             if not data:
                 return
@@ -100,11 +106,6 @@ class Lastfm(Base):
                     continue
 
                 yield info_album
-
-            next_link = tree.cssselect('.pagination .nextlink')
-            if not next_link:
-                return
-            url = urljoin(self.url, next_link[0].get('href'))
 
     def _get_info(self, query):
         url = self._get_artist_url(query)
@@ -165,7 +166,14 @@ class Lastfm(Base):
         logger.error('failed to find similar artists link for %s at %s', query, url)
 
     def _similar_artists(self, url):
+        tree = None
         for i in range(MAX_SIMILAR_PAGES):
+            if tree is not None:
+                links = tree.cssselect('.pagination .nextlink')
+                if not links or not self.check_next_link(links[-1]):
+                    return
+                url = urljoin(self.url, links[-1].get('href'))
+
             data = self.browser.get_unicode_data(url=url)
             if not data:
                 return
@@ -175,11 +183,6 @@ class Lastfm(Base):
                 links = tag.cssselect('a')
                 if links:
                     yield clean(self.get_link_text(html.tostring(links[0])), 1)
-
-            next_link = tree.cssselect('.pagination .nextlink')
-            if not next_link:
-                return
-            url = urljoin(self.url, next_link[0].get('href'))
 
     def get_similar(self, query):
         '''Get similar artists.

@@ -16,7 +16,6 @@ RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
 RE_SUGGESTIONS = re.compile(r'search\sresults:', re.I)
 
-
 logger = logging.getLogger(__name__)
 
 

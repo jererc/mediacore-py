@@ -12,7 +12,6 @@ RE_DOWNLOAD_JUNK = re.compile(r'/(\.DS_Store|Thumbs\.db)$', re.I)
 UNPACK_PASSES = 3
 SIZE_ALBUM_IMAGE_MIN = 50     # KB
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -72,6 +71,7 @@ def clean_download_dir(path):
             remove_file(file)
         else:
             clean_file(file)
+            os.utime(file, None)
 
     if os.path.exists(path):
         return path

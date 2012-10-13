@@ -18,7 +18,6 @@ RE_DATE = re.compile(r'<title>.*?\(.*?(\d{4}).*?\).*?</title>', re.I)
 RE_LIST_DATE = re.compile(r'\b(\d{4})\b', re.I)
 RE_NAMES_EXCL = re.compile(r'(more credit|full cast)', re.I)
 
-
 logger = logging.getLogger(__name__)
 
 

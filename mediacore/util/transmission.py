@@ -14,7 +14,6 @@ from mediacore.util.download import check_download_file
 
 RE_DUPLICATE = re.compile(r'\bduplicate\storrent\b', re.I)
 
-
 logger = logging.getLogger(__name__)
 
 

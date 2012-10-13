@@ -5,14 +5,17 @@ from httplib import IncompleteRead, BadStatusLine
 from urllib2 import URLError
 import logging
 
+from lxml import html
+
 import mechanize
+
+from mediacore.util.title import clean
 
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
 TIMEOUT = 300
 URL_TIMEOUT = 20
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
-
 
 socket.setdefaulttimeout(TIMEOUT)
 logger = logging.getLogger(__name__)
@@ -61,7 +64,7 @@ class Browser(mechanize.Browser):
         try:
             encoding = re.search(r'charset=([^\s]+)', content_type).groups()[0]
             res = res.decode(encoding)
-        except (AttributeError, IndexError):
+        except (AttributeError, IndexError, UnicodeDecodeError):
             logger.error('failed to get the encoding at %s', response.geturl())
         return res
 
@@ -102,6 +105,10 @@ class Base(object):
             return res.group(1)
         logger.error('failed to get text from link "%s"', val)
 
+    def check_next_link(self, link, text='next'):
+        next_text = clean(self.get_link_text(html.tostring(link)), 1)
+        return next_text == text
+
     def submit_form(self, url=None, name=None, index=None, fields=None, debug=False):
         if url:
             if not self.browser.open(url):
@@ -133,6 +140,7 @@ class Base(object):
                 logger.error('failed to set form field "%s" for form %s', key, str(self.browser))
 
         return self.browser.submit()
+
 
 def get_website_name(url):
     name = urlparse(url.lower()).netloc

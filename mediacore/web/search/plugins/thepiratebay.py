@@ -5,7 +5,7 @@ import logging
 from lxml import html
 
 from mediacore.web import Base
-from mediacore.web.torrent import Result, TorrentError
+from mediacore.web.search import Result, DownloadError
 from mediacore.util.title import clean, is_url
 
 
@@ -20,13 +20,12 @@ CAT_DEF = {
     'tv': 'video',
     }
 RE_URL_SORT = {
-    'age': re.compile(r'^\s*Uploaded\s*$', re.I),
-    'seeds': re.compile(r'^\s*SE\s*$', re.I),
+    'date': re.compile(r'^\s*Uploaded\s*$', re.I),
+    'popularity': re.compile(r'^\s*SE\s*$', re.I),
     }
 RE_OVERLOAD = re.compile(r'%s' % re.escape('please try again in a few seconds'), re.I)
 RE_DETAILS = re.compile(r'uploaded\s+(.*?)\s*,\s*size\s+(.*?)\s*,', re.I)
 RE_DATE = re.compile(r'^(y-day|today|\d\d-\d\d|\d+)\s+(\d\d:\d\d|\d{4}|mins?\s+ago)$', re.I)
-
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class Thepiratebay(Base):
                 text_regex=re.compile(r'^\D*%s\D*$' % page),
                 url_regex=re.compile(r'/%s/' % (page - 1), re.I))
 
-    def _pages(self, query, category=None, sort='age', pages_max=1):
+    def _pages(self, query, category=None, sort='date', pages_max=1):
         for page in range(1, pages_max + 1):
             if page > 1:
                 res = self._next(page)
@@ -70,9 +69,9 @@ class Thepiratebay(Base):
                 if not data:
                     if page > 1:
                         return
-                    raise TorrentError('no data')
+                    raise DownloadError('no data')
                 elif RE_OVERLOAD.search(data):
-                    raise TorrentError('overload')
+                    raise DownloadError('overload')
 
                 yield page, data
 
@@ -100,7 +99,7 @@ class Thepiratebay(Base):
             if url.startswith('magnet:?'):
                 return url
 
-    def results(self, query, category=None, sort='age', pages_max=1, **kwargs):
+    def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
         for page, data in self._pages(query, category, sort, pages_max):
             tree = html.fromstring(data)
             for tr in tree.cssselect('#searchResult tr:not([class="header"])'):
@@ -118,8 +117,9 @@ class Thepiratebay(Base):
                     continue
                 result.title = res[0].text
 
-                result.url_magnet = self._get_magnet_url(tr)
-                if not result.url_magnet:
+                result.type = 'magnet'
+                result.url = self._get_magnet_url(tr)
+                if not result.url:
                     logger.error('failed to get magnet url from %s', log)
                     continue
                 if not result.get_hash():
@@ -151,6 +151,4 @@ class Thepiratebay(Base):
                     result.seeds = int(tr[2].text)
                 except Exception:
                     pass
-
-                result.page = page
                 yield result

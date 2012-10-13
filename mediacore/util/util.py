@@ -1,6 +1,10 @@
 import re
 import random
 from copy import deepcopy
+from urlparse import parse_qs
+
+
+RE_URL_MAGNET = re.compile(r'^magnet:\?(.*)', re.I)
 
 
 def list_in(l1, l2, all=True):
@@ -73,3 +77,9 @@ def prefix_dict(dict_src, prefix):
         res['%s%s' % (prefix, key)] = val
     return res
 
+def parse_magnet_url(url):
+    try:
+        qs = RE_URL_MAGNET.search(url).group(1)
+        return parse_qs(qs)
+    except Exception:
+        pass

@@ -6,9 +6,9 @@ import logging
 from lxml import html
 
 from mediacore.web import Base, Browser
-from mediacore.web.torrent import (parse_magnet_url, Result, TorrentError,
-        RE_URL_MAGNET)
+from mediacore.web.search import Result, DownloadError
 from mediacore.util.title import Title, clean, is_url
+from mediacore.util.util import parse_magnet_url, RE_URL_MAGNET
 
 
 PRIORITY = 1
@@ -22,12 +22,11 @@ CAT_DEF = {
     'tv': re.compile(r'\b(tv|television|shows?)\b', re.I),
     }
 RE_URL_SORT = {
-    'age': re.compile(r'^date$', re.I),
-    'seeds': re.compile(r'^peers$', re.I),
+    'date': re.compile(r'^date$', re.I),
+    'popularity': re.compile(r'^peers$', re.I),
     }
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
 RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match\b', re.I)
-
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class Torrentz(Base):
                 text_regex=re.compile(r'^%s$' % page),
                 url_regex=re.compile(r'\bp=%s\b' % (page - 1), re.I))
 
-    def _pages(self, query, sort='age', pages_max=1):
+    def _pages(self, query, sort='date', pages_max=1):
         for page in range(1, pages_max + 1):
             if page > 1:
                 res = self._next(page)
@@ -57,7 +56,7 @@ class Torrentz(Base):
                     res = self.browser.open(query)
                 else:
                     res = self.submit_form(self.url, index=0, fields={'f': query})
-                    if res and sort != 'seeds':     # default is 'peers'
+                    if res and sort != 'popularity':     # default sort is peers ('popularity')
                         res = self._sort(sort)
 
             if res:
@@ -65,7 +64,7 @@ class Torrentz(Base):
                 if not data:
                     if page > 1:
                         return
-                    raise TorrentError('no data')
+                    raise DownloadError('no data')
 
                 yield page, data
 
@@ -124,7 +123,7 @@ class Torrentz(Base):
                 return key
         return 'other'
 
-    def results(self, query, category=None, sort='age', pages_max=1, **kwargs):
+    def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
         for page, data in self._pages(query, sort, pages_max):
             tree = html.fromstring(data)
 
@@ -194,11 +193,10 @@ class Torrentz(Base):
 
                     # Find torrent url
                     url_info = urljoin(self.url, links[0].get('href'))
-                    result.url_magnet = self._get_torrent_url(query, url_info)
-                    if not result.url_magnet:
+                    result.type = 'magnet'
+                    result.url = self._get_torrent_url(query, url_info)
+                    if not result.url:
                         continue
                     if not result.get_hash():
                         continue
-
-                    result.page = page
                     yield result

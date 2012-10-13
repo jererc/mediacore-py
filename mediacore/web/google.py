@@ -10,7 +10,6 @@ from mediacore.util.title import clean
 RE_NB_RESULTS = re.compile(r'(\d+)')
 RE_URL_SEARCH = re.compile(r'\bsearch\b')
 
-
 logger = logging.getLogger(__name__)
 
 

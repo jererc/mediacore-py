@@ -18,7 +18,6 @@ RE_YEAR = re.compile(r'\b(\d{4})\b')
 RE_SPECIAL = re.compile(r'\(.*?special.*?\)', re.I)
 RE_CURRENT_SHOWS = re.compile(r'current shows', re.I)
 
-
 logger = logging.getLogger(__name__)
 
 

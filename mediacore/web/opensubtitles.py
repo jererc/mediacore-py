@@ -17,7 +17,6 @@ RE_ERROR = re.compile(r'\bcritical\s+error\b', re.I)
 RE_NO_RESULT = re.compile(r'<b>No\s+results</b>\s+found', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
 
-
 logger = logging.getLogger(__name__)
 
 

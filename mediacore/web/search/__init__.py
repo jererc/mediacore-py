@@ -1,38 +1,26 @@
 import os
 import re
-from urlparse import parse_qs
 from datetime import datetime
 import logging
 
-from systools.system import dotdict
+from mediacore.util.title import Title, clean, get_size
+from mediacore.util.util import in_range, list_in, parse_magnet_url
 
-from mediacore.util.title import Title, clean
-from mediacore.util.util import in_range, list_in
+from systools.system import dotdict
 
 
 PLUGINS_DIR = 'plugins'
-RE_SIZE = re.compile(r'^([\d\.]+)\W*\s*([gmk])?i?b\s*$', re.I)
-RE_URL_MAGNET = re.compile(r'^magnet:\?(.*)', re.I)
-
 
 logger = logging.getLogger(__name__)
 
 
-class TorrentError(Exception): pass
+class DownloadError(Exception): pass
 
 
 class Result(dotdict):
+
     def __init__(self):
         init = {
-            'hash': None,
-            'title': None,
-            'category': '',
-            'url_magnet': None,
-            'url_torrent': None,
-            'size': None,
-            'date': None,
-            'seeds': None,
-            'page': 1,
             'created': datetime.utcnow(),
             'processed': False,
             }
@@ -90,71 +78,60 @@ class Result(dotdict):
     def get_size(self, val):
         '''Get the result size in MB.
         '''
-        res = RE_SIZE.search(val)
-        if not res:
-            logger.error('failed to get result size from "%s"', val)
-            return
-
-        size, unit = res.groups()
-        self.size = float(size)
-        if not unit:
-            self.size /= (1024 * 1024)
-        elif unit.lower() == 'k':
-            self.size /= 1024
-        elif unit.lower() == 'g':
-            self.size *= 1024
-        return True
+        self.size = get_size(val)
+        if self.size is not None:
+            return True
+        logger.error('failed to get result size from "%s"', val)
 
     def get_hash(self):
-        if self.url_magnet:
-            res = parse_magnet_url(self.url_magnet)
+        if not self.url:
+            logger.error('failed to get hash from result %s', self)
+        else:
+            res = parse_magnet_url(self.url)
             if res and 'xt' in res:
                 hash = res['xt'][0].split(':')[-1].lower()
                 if hash:
                     self.hash = hash
                     return True
+            logger.error('failed to get hash from magnet url "%s"', self.url)
 
-            logger.error('failed to get hash from magnet url "%s"', self.url_magnet)
-        else:
-            logger.error('failed to get hash from result %s', self)
-
-
-def _get_nets():
-    '''Find torrent modules filenames.
+def _get_plugins():
+    '''Find modules filenames sorted by priority.
 
     :return: modules list
     '''
     res = []
+
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), PLUGINS_DIR)
     for filename in os.listdir(path):
         module, ext = os.path.splitext(filename)
         if ext == '.py' and module != '__init__':
-            priority = _get_net_priority(module)
+            priority = _get_plugin_priority(module)
             if priority is not None:
                 res.append((priority, module))
 
-    return [net for i, net in sorted(res)]
+    return [name for i, name in sorted(res)]
 
-def _get_module(net):
+def _get_module(plugin):
     try:
-        return __import__('%s.%s' % (PLUGINS_DIR, net), globals(), locals(), [net], -1)
+        return __import__('%s.%s' % (PLUGINS_DIR, plugin), globals(), locals(), [plugin], -1)
     except ImportError:
-        logger.error('failed to import %s module', net)
+        logger.error('failed to import %s module', plugin)
 
-def _get_net_priority(net):
-    module_ = _get_module(net)
+def _get_plugin_priority(plugin):
+    module_ = _get_module(plugin)
     if module_:
-        return getattr(module_, 'PRIORITY', None)
+        return getattr(module_, 'PRIORITY', 0)
 
-def _get_net_object(net):
-    '''Get a torrent plugin object.
+def _get_plugin_object(plugin):
+    '''Get a search plugin object.
     '''
-    module_ = _get_module(net)
+    module_ = _get_module(plugin)
     if module_:
         try:
-            object_ = getattr(module_, net.capitalize())()
+            object_ = getattr(module_, plugin.capitalize())()
         except Exception:
-            logger.error('failed to get %s object', net.capitalize())
+            logger.error('failed to get %s object', plugin.capitalize())
             return
         if object_.url:
             return object_
@@ -173,11 +150,11 @@ def get_query(query, category=None):
     return query
 
 def results(query, **kwargs):
-    '''Get torrent results.
+    '''Get search results.
     '''
-    nets = kwargs.get('nets', _get_nets())
-    for net in nets:
-        obj = _get_net_object(net)
+    plugins = kwargs.get('plugins', _get_plugins())
+    for plugin in plugins:
+        obj = _get_plugin_object(plugin)
         if not obj:
             yield None
             continue
@@ -189,15 +166,8 @@ def results(query, **kwargs):
 
         try:
             for result in obj.results(query_, **kwargs):
-                result.net_name = net
+                result.plugin = plugin
                 yield result
-        except TorrentError, e:
-            logger.error('error with %s: %s', net, str(e))
+        except DownloadError, e:
+            logger.error('error with %s: %s', plugin, str(e))
             yield None
-
-def parse_magnet_url(url):
-    try:
-        qs = RE_URL_MAGNET.search(url).group(1)
-        return parse_qs(qs)
-    except Exception:
-        logger.error('failed to parse magnet url %s', url)

@@ -10,7 +10,6 @@ from mediacore.web import Base
 
 RE_DATE = re.compile(r'\d{2}-\d{2} \d{4}')
 
-
 logger = logging.getLogger(__name__)
 
 

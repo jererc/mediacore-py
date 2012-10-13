@@ -1,6 +1,5 @@
 import os
 import re
-from datetime import datetime
 import shutil
 from stat import S_IMODE
 import mimetypes
@@ -44,7 +43,6 @@ PATTERNS_LANGS_WORDS = {
     'sw': r"",
     'ar': r"",
     }
-
 
 logger = logging.getLogger(__name__)
 
@@ -143,11 +141,6 @@ def check_size(file, size_min=None, size_max=None):
     size = get_size(file)
     if size is not None:
         return in_range(size / 1024, size_min, size_max)
-
-def get_modified_date(file):
-    '''Get the file modified date.
-    '''
-    return datetime.utcfromtimestamp(os.stat(file).st_mtime)
 
 def get_file_type(file):
     # Custom types
@@ -433,6 +426,8 @@ class Audio(Media):
             if info.get('date'):
                 info['display_name'] = '%s%s%s' % (info['display_name'], ' - ' if info['display_name'] else '', info['date'])
             info['subtype'] = 'music'
+            if not info.get('display_name'):
+                info['display_name'] = clean(self.dir, 1)
         return info
 
 
