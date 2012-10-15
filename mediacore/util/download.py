@@ -70,8 +70,8 @@ def clean_download_dir(path):
         elif RE_DOWNLOAD_JUNK.search(file):
             remove_file(file)
         else:
-            clean_file(file)
             os.utime(file, None)
+            clean_file(file)
 
     if os.path.exists(path):
         return path

@@ -57,5 +57,7 @@ class Youtube(object):
 
         re_title = Title(artist).get_search_re(mode='__all__')
         for result in self.results('%s %s' % (artist, album)):
-            if re_title.search(result['title']) and result['url_watch'] and result['urls_thumbnails']:
+            if not result['title'] or not result['url_watch'] or not result['urls_thumbnails']:
+                continue
+            if re_title.search(result['title']):
                 return result

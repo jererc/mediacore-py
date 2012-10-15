@@ -132,6 +132,9 @@ class Base(object):
         except mechanize.FormNotFoundError:
             logger.error('failed to find form %s at %s', form_info, url or self.browser.geturl())
             return
+        except Exception, e:
+            logger.error('failed to find form %s at %s: %s', form_info, url or self.browser.geturl(), str(e))
+            return
 
         for key, val in fields.items():
             try:
