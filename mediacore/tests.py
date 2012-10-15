@@ -4,14 +4,22 @@ import shutil
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+import subprocess
 import unittest
 import logging
+
+from contextlib import nested
+
+from mock import patch, Mock
+
+from lxml import html
 
 import settings
 
 from mediacore.util.db import connect, get_db
 from mediacore.util.title import Title, clean, get_episode_info
 from mediacore.util.transmission import Transmission
+from mediacore.util import util
 
 from mediacore.model import Base
 
@@ -24,9 +32,9 @@ from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
 
 from mediacore.web.search import results
-from mediacore.web.search.plugins.thepiratebay import Thepiratebay
-from mediacore.web.search.plugins.torrentz import Torrentz
-from mediacore.web.search.plugins.filestube import Filestube
+from mediacore.web.search.plugins import thepiratebay as mthepiratebay
+from mediacore.web.search.plugins import torrentz as mtorrentz
+from mediacore.web.search.plugins import filestube as mfilestube
 
 
 DB_TESTS = 'test'
@@ -68,7 +76,6 @@ def mkdtemp(dir='/tmp'):
 #
 # System
 #
-# TODO: add system requirements tests
 class TransmissionTest(unittest.TestCase):
 
     def setUp(self):
@@ -82,6 +89,33 @@ class TransmissionTest(unittest.TestCase):
                 password=settings.TRANSMISSION_PASSWORD)
 
         self.assertTrue(transmission.logged, 'failed to connect to transmission rpc server')
+
+
+def popen(bin):
+        proc = subprocess.Popen(['which', bin],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        return stdout, stderr, proc.returncode
+
+class BinTest(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def test_mediainfo(self):
+        bin = 'mediainfo'
+        stdout, stderr, return_code = popen(bin)
+        self.assertEqual(return_code, 0, 'failed to find %s' % bin)
+
+    def test_unzip(self):
+        bin = 'unzip'
+        stdout, stderr, return_code = popen(bin)
+        self.assertEqual(return_code, 0, 'failed to find %s' % bin)
+
+    def test_unrar(self):
+        bin = 'unrar'
+        stdout, stderr, return_code = popen(bin)
+        self.assertEqual(return_code, 0, 'failed to find %s' % bin)
 
 
 #
@@ -481,7 +515,7 @@ class SputnikmusicTest(unittest.TestCase):
         self.album = ALBUM
         self.album_year = ALBUM_YEAR
 
-    def test_get_info(self):
+    def test_get_artist_info(self):
         res = self.object.get_info(self.artist)
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
 
@@ -497,6 +531,10 @@ class SputnikmusicTest(unittest.TestCase):
 
         for key in ('rating', 'url', 'url_cover'):
             self.assertTrue(res.get(key), 'failed to get %s for artist "%s" album "%s"' % (key, self.artist, self.album))
+
+    def test_get_similar(self):
+        res = self.object.get_similar(self.artist)
+        self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
     def test_reviews(self):
         res = list(self.object.reviews())
@@ -516,7 +554,7 @@ class LastfmTest(unittest.TestCase):
         self.album = ALBUM
         self.album_year = ALBUM_YEAR
 
-    def test_get_info(self):
+    def test_get_artist_info(self):
         res = self.object.get_info(self.artist)
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
 
@@ -530,6 +568,10 @@ class LastfmTest(unittest.TestCase):
         self.assertEqual(res.get('name'), self.album.lower())
         self.assertEqual(res.get('date'), self.album_year)
         self.assertTrue(res.get('url'))
+
+    def test_get_similar(self):
+        res = self.object.get_similar(self.artist)
+        self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
@@ -551,7 +593,7 @@ class VcdqualityTest(unittest.TestCase):
 
 
 #
-# Torrent
+# Utils
 #
 class MagnetUrlTest(unittest.TestCase):
 
@@ -560,7 +602,7 @@ class MagnetUrlTest(unittest.TestCase):
 
     def test_parse_single(self):
         url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE'
-        res = torrent.parse_magnet_url(url)
+        res = util.parse_magnet_url(url)
 
         self.assertTrue(isinstance(res, dict))
         self.assertEqual(res.get('dn'), ['TITLE'])
@@ -568,89 +610,193 @@ class MagnetUrlTest(unittest.TestCase):
 
     def test_parse_multiple(self):
         url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE1&key=VALUE2&key=VALUE3'
-        res = torrent.parse_magnet_url(url)
+        res = util.parse_magnet_url(url)
 
         self.assertTrue(isinstance(res, dict))
         self.assertEqual(res.get('dn'), ['TITLE'])
         self.assertEqual(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
 
 
+#
+# Search
+#
 @unittest.skipIf(not is_connected, 'not connected to the internet')
-class TorrentSearchTest(unittest.TestCase):
+class ThepiratebayTest(unittest.TestCase):
 
     def setUp(self):
-        self.objects = [
-            ('thepiratebay', Thepiratebay()),
-            ('torrentz', Torrentz()),
-            ]
         self.pages_max = 3
+        self.max_results = 10
+        self.cls = mthepiratebay.Thepiratebay
 
-    def test_plugins_results(self):
-        for obj_name, obj in self.objects:
-            res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
-            self.assertTrue(res, 'failed to find results for "%s" with %s' % (GENERIC_QUERY, obj_name))
-
-            seeds_count = 0
-            for r in res:
-                self.assertTrue(r)
-
-                for key in ('title', 'category', 'size', 'date', 'page'):
-                    self.assertTrue(r.get(key) is not None, 'failed to get %s from %s with %s' % (key, r, obj_name))
-
-                self.assertTrue(r.get('url_magnet') or r.get('url_torrent'), 'failed to get torrent url from %s with %s' % (r, obj_name))
-
-                if r.get('seeds') is not None:
-                    seeds_count += 1
-
-            self.assertTrue(seeds_count > len(res) * 2 / 3)
-
-            # self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s" with %s' % (res[-1].page, self.pages_max, GENERIC_QUERY, obj_name))
-
-    def test_plugins_results_sort(self):
-        for obj_name, obj in self.objects:
-            for sort in ('date', 'popularity'):
-
-                if sort == 'popularity' and obj_name == 'torrentz':  # not really sorted by seeds...
-                    continue
-
-                val_prev = None
-                for res in obj.results(GENERIC_QUERY, sort=sort, pages_max=2):
-
-                    if sort == 'date':
-                        val = res.date
-                        if val_prev:
-                            self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s is not older than %s with %s' % (val, val_prev, obj_name))
-                        val_prev = val
-
-                    elif sort == 'popularity':
-                        val = res.seeds
-                        if val_prev:
-                            self.assertTrue(val <= val_prev, '%s is not less than %s with %s' % (val, val_prev, obj_name))
-                        val_prev = val
-
-    def test_results(self):
-        res = list(torrent.results(GENERIC_QUERY, pages_max=self.pages_max))
-        self.assertTrue(res, 'failed to get results for "%s"' % GENERIC_QUERY)
-
+    def test_result(self):
+        count = 0
         seeds_count = 0
-        for r in res:
-            self.assertTrue(r)
+        res = None
+        for res in self.cls().results(GENERIC_QUERY):
+            if not res:
+                continue
 
-            for key in ('plugin', 'title', 'category', 'size'):
-                self.assertTrue(r.get(key) is not None, 'failed to get %s from %s' % (key, r))
+            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
+            for key in ('title', 'url', 'category', 'size', 'date'):
+                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
-            url = r.get('url_magnet') or r.get('url_torrent')
-            self.assertTrue(url, 'failed to get url from %s' % r)
-
-            self.assertTrue(isinstance(r.get('date'), datetime), 'date "%s" is not a datetime' % r.get('date'))
-            self.assertTrue(isinstance(r.get('size'), float), 'size "%s" is not a float' % r.get('size'))
-
-            if r.get('seeds') is not None:
+            if res.get('seeds') is not None:
                 seeds_count += 1
 
-        self.assertTrue(seeds_count > len(res) * 2 / 3)
+            count += 1
+            if count == self.max_results:
+                break
 
-        # self.assertEqual(res[-1].page, self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1].page, self.pages_max, GENERIC_QUERY))
+        self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+
+    def test_sort(self):
+        for sort in ('date', 'popularity'):
+            count = 0
+            val_prev = None
+            for res in self.cls().results(GENERIC_QUERY, sort=sort):
+                if not res:
+                    continue
+
+                if sort == 'date':
+                    val = res.date
+                    if val_prev:
+                        self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
+                    val_prev = val
+
+                elif sort == 'popularity':
+                    val = res.seeds
+                    if val_prev:
+                        self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
+                    val_prev = val
+
+                count += 1
+                if count == self.max_results:
+                    break
+
+            self.assertTrue(count > self.max_results * 3 / 4.0)
+
+    def test_pages(self):
+        obj = self.cls()
+        orig = obj._next
+
+        with nested(patch.object(mthepiratebay.Thepiratebay, '_next'),
+                patch.object(mthepiratebay.Thepiratebay, '_get_magnet_url'),
+                ) as (mock_next, mock_get):
+            mock_next.side_effect = orig
+            mock_get.return_value = None
+
+            res = list(self.cls().results(GENERIC_QUERY, pages_max=self.pages_max))
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+
+
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class TorrentzTest(unittest.TestCase):
+
+    def setUp(self):
+        self.pages_max = 3
+        self.max_results = 10
+        self.cls = mtorrentz.Torrentz
+
+    def test_result(self):
+        count = 0
+        seeds_count = 0
+        res = None
+        for res in self.cls().results(GENERIC_QUERY):
+            if not res:
+                continue
+
+            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
+            for key in ('title', 'url', 'category', 'size', 'date'):
+                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
+
+            if res.get('seeds') is not None:
+                seeds_count += 1
+
+            count += 1
+            if count == self.max_results:
+                break
+
+        self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+
+    def test_sort(self):
+        for sort in ('date',):  # we do not test popularity since torrentz does not really sort by seeds
+            count = 0
+            val_prev = None
+            for res in self.cls().results(GENERIC_QUERY, sort=sort):
+                if not res:
+                    continue
+
+                if sort == 'date':
+                    val = res.date
+                    if val_prev:
+                        self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
+                    val_prev = val
+
+                elif sort == 'popularity':
+                    val = res.seeds
+                    if val_prev:
+                        self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
+                    val_prev = val
+
+                count += 1
+                if count == self.max_results:
+                    break
+
+            self.assertTrue(count > self.max_results * 3 / 4.0)
+
+    def test_pages(self):
+        obj = self.cls()
+        orig = obj._next
+
+        with nested(patch.object(mtorrentz.Torrentz, '_next'),
+                patch.object(mtorrentz.Torrentz, 'get_link_text'),
+                ) as (mock_next, mock_getlink):
+            mock_next.side_effect = orig
+            mock_getlink.return_value = None
+
+            res = list(self.cls().results(GENERIC_QUERY, pages_max=self.pages_max))
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+
+
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class FilestubeTest(unittest.TestCase):
+
+    def setUp(self):
+        self.pages_max = 3
+        self.max_results = 10
+        self.cls = mfilestube.Filestube
+
+    def test_result(self):
+        count = 0
+        seeds_count = 0
+        res = None
+        for res in self.cls().results(GENERIC_QUERY):
+            if not res:
+                continue
+
+            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
+            for key in ('title', 'url', 'size'):
+                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
+
+            count += 1
+            if count == self.max_results:
+                break
+
+    def test_pages(self):
+        obj = self.cls()
+        orig = obj.check_next_link
+
+        with nested(patch.object(mfilestube.Filestube, 'check_next_link'),
+                patch.object(mfilestube.Filestube, '_get_download_info'),
+                ) as (mock_next, mock_info):
+            mock_next.side_effect = orig
+            mock_info.return_value = None
+
+            res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
 if __name__ == '__main__':
