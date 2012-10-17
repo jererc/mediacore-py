@@ -29,12 +29,13 @@ from mediacore.web.tvrage import Tvrage
 from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
+
 from mediacore.web.vcdquality import Vcdquality
 
-from mediacore.web.search import results
-from mediacore.web.search.plugins import thepiratebay as mthepiratebay
-from mediacore.web.search.plugins import torrentz as mtorrentz
-from mediacore.web.search.plugins import filestube as mfilestube
+from mediacore.web.search import Result, results
+from mediacore.web.search.plugins.thepiratebay import Thepiratebay
+from mediacore.web.search.plugins.torrentz import Torrentz
+from mediacore.web.search.plugins.filestube import Filestube
 
 
 DB_TESTS = 'test'
@@ -52,13 +53,12 @@ TVSHOW_YEAR = 2007
 BAND = 'breach'
 ALBUM = 'kollapse'
 ALBUM_YEAR = 2001
+BAND2 = 'radiohead'
 
 OPENSUBTITLES_LANG = 'eng'
 
 
 logging.basicConfig(level=logging.DEBUG)
-
-
 connect(DB_TESTS)
 is_connected = Google().accessible
 db_ok = get_db().name == DB_TESTS
@@ -76,7 +76,13 @@ def mkdtemp(dir='/tmp'):
 #
 # System
 #
-class TransmissionTest(unittest.TestCase):
+def popen(bin):
+        proc = subprocess.Popen(['which', bin],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        return stdout, stderr, proc.returncode
+
+class SystemTest(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -89,18 +95,6 @@ class TransmissionTest(unittest.TestCase):
                 password=settings.TRANSMISSION_PASSWORD)
 
         self.assertTrue(transmission.logged, 'failed to connect to transmission rpc server')
-
-
-def popen(bin):
-        proc = subprocess.Popen(['which', bin],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-        return stdout, stderr, proc.returncode
-
-class BinTest(unittest.TestCase):
-
-    def setUp(self):
-        pass
 
     def test_mediainfo(self):
         bin = 'mediainfo'
@@ -368,6 +362,31 @@ class ModelTest(unittest.TestCase):
 
 
 #
+# Utils
+#
+class MagnetUrlTest(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def test_parse_single(self):
+        url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE'
+        res = util.parse_magnet_url(url)
+
+        self.assertTrue(isinstance(res, dict))
+        self.assertEqual(res.get('dn'), ['TITLE'])
+        self.assertEqual(res.get('key'), ['VALUE'])
+
+    def test_parse_multiple(self):
+        url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE1&key=VALUE2&key=VALUE3'
+        res = util.parse_magnet_url(url)
+
+        self.assertTrue(isinstance(res, dict))
+        self.assertEqual(res.get('dn'), ['TITLE'])
+        self.assertEqual(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
+
+
+#
 # Web
 #
 @unittest.skipIf(not is_connected, 'not connected to the internet')
@@ -397,10 +416,10 @@ class GoogleTest(unittest.TestCase):
 class ImdbTest(unittest.TestCase):
 
     def setUp(self):
-        self.object = Imdb()
+        self.obj = Imdb()
 
     def test_get_info_movie(self):
-        res = self.object.get_info(MOVIE)
+        res = self.obj.get_info(MOVIE)
         self.assertTrue(res, 'failed to get info for "%s"' % MOVIE)
 
         self.assertEqual(res.get('date'), MOVIE_YEAR)
@@ -414,7 +433,7 @@ class ImdbTest(unittest.TestCase):
         movie_year = 2011
         movie_director = 'julia leigh'
 
-        res = self.object.get_info(movie, year=movie_year)
+        res = self.obj.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
         self.assertEqual(res.get('date'), movie_year)
@@ -425,21 +444,26 @@ class ImdbTest(unittest.TestCase):
         movie_year = 1959
         movie_director = 'clyde geronimi'
 
-        res = self.object.get_info(movie, year=movie_year)
+        res = self.obj.get_info(movie, year=movie_year)
         self.assertTrue(res, 'failed to get info for "%s" (%s)' % (movie, movie_year))
 
         self.assertEqual(res.get('date'), movie_year)
         self.assertTrue(movie_director in res.get('director'), 'failed to get director for %s: %s' % (movie, res.get('director')))
+
+    # TODO
+    def test_get_similar(self):
+        pass
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class TvrageTest(unittest.TestCase):
 
     def setUp(self):
-        self.object = Tvrage()
+        self.max_results = 10
+        self.obj = Tvrage()
 
     def test_get_info(self):
-        res = self.object.get_info(TVSHOW)
+        res = self.obj.get_info(TVSHOW)
         self.assertTrue(res, 'failed to get info for "%s"' % TVSHOW)
 
         self.assertEqual(res.get('date'), TVSHOW_YEAR)
@@ -450,80 +474,48 @@ class TvrageTest(unittest.TestCase):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, TVSHOW))
 
     def test_scheduled_shows(self):
-        res = list(self.object.scheduled_shows())
-        self.assertTrue(res, 'failed to get scheduled shows')
-
+        count = 0
         season_count = 0
         episode_count = 0
-        for r in res:
-            if r.get('season'):
+        for res in self.obj.scheduled_shows():
+            if not res:
+                continue
+
+            for key in ('network', 'name', 'url'):
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+
+            if res.get('season'):
                 season_count += 1
-            if r.get('episode'):
+            if res.get('episode'):
                 episode_count += 1
 
-            for key in ('name', 'network', 'url'):
-                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
+            count += 1
+            if count == self.max_results:
+                break
 
-        self.assertTrue(season_count > len(res) * 2 / 3)
-        self.assertTrue(episode_count > len(res) * 2 / 3)
-
-
-@unittest.skipIf(not is_connected, 'not connected to the internet')
-class OpensubtitlesTest(unittest.TestCase):
-
-    def setUp(self):
-        self.object = Opensubtitles(settings.OPENSUBTITLES_USERNAME, settings.OPENSUBTITLES_PASSWORD)
-
-    def test_logged(self):
-        self.assertTrue(self.object.logged)
-
-    def test_subtitles_movie(self):
-        res = list(self.object.results(MOVIE, lang=OPENSUBTITLES_LANG))
-        self.assertTrue(res, 'failed to find subtitles for "%s"' % MOVIE)
-
-        for r in res:
-            for key in ('filename', 'url'):
-                self.assertTrue(r.get(key), 'failed to get %s from subtitles %s' % (key, r))
-
-    def test_subtitles_tvshow(self):
-        res = list(self.object.results(TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE, lang=OPENSUBTITLES_LANG))
-        self.assertTrue(res, 'failed to find subtitles for "%s" season %s episode %s' % (TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE))
-
-        for r in res:
-            for key in ('filename', 'url'):
-                self.assertTrue(r.get(key), 'failed to get %s from subtitles %s' % (key, r))
-
-    @unittest.skipIf(not settings.OPENSUBTITLES_USERNAME or not settings.OPENSUBTITLES_PASSWORD, 'missing opensubtitles credentials')
-    def test_save_subtitles(self):
-        res = list(self.object.results(MOVIE, lang=OPENSUBTITLES_LANG))
-        self.assertTrue(res, 'failed to find subtitles for "%s"' % MOVIE)
-
-        with mkdtemp() as temp_dir:
-            try:
-                saved = self.object.save(res[0]['url'], os.path.join(temp_dir, res[0]['filename']))
-                self.assertTrue(saved, 'failed to save subtitles %s (%s)' % (res[0]['filename'], res[0]['url']))
-            except DownloadQuotaReached:
-                pass
+        self.assertEqual(count, self.max_results)
+        self.assertTrue(season_count > self.max_results * 2 / 3.0)
+        self.assertTrue(episode_count > self.max_results * 2 / 3.0)
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class SputnikmusicTest(unittest.TestCase):
 
     def setUp(self):
-        self.object = Sputnikmusic()
+        self.obj = Sputnikmusic()
         self.artist = BAND
         self.album = ALBUM
         self.album_year = ALBUM_YEAR
 
     def test_get_artist_info(self):
-        res = self.object.get_info(self.artist)
+        res = self.obj.get_info(self.artist)
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
 
         for key in ('url_band', 'albums', 'similar_bands'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
 
     def test_get_album_info(self):
-        res = self.object.get_info(self.artist, self.album)
+        res = self.obj.get_info(self.artist, self.album)
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
         self.assertEqual(res.get('name'), self.album.lower())
@@ -533,11 +525,11 @@ class SputnikmusicTest(unittest.TestCase):
             self.assertTrue(res.get(key), 'failed to get %s for artist "%s" album "%s"' % (key, self.artist, self.album))
 
     def test_get_similar(self):
-        res = self.object.get_similar(self.artist)
+        res = self.obj.get_similar(self.artist)
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
     def test_reviews(self):
-        res = list(self.object.reviews())
+        res = list(self.obj.reviews())
         self.assertTrue(res, 'failed to get reviews')
 
         for release in res:
@@ -549,94 +541,156 @@ class SputnikmusicTest(unittest.TestCase):
 class LastfmTest(unittest.TestCase):
 
     def setUp(self):
-        self.object = Lastfm()
         self.artist = BAND
+        self.artist2 = BAND2
         self.album = ALBUM
         self.album_year = ALBUM_YEAR
+        self.pages_max = 3
+        self.obj = Lastfm()
 
-    def test_get_artist_info(self):
-        res = self.object.get_info(self.artist)
+    def test_get_info_artist(self):
+        res = self.obj.get_info(self.artist)
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
 
         for key in ('url_band', 'albums'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
 
-    def test_get_album_info(self):
-        res = self.object.get_info(self.artist, self.album)
+    def test_get_info_album(self):
+        res = self.obj.get_info(self.artist, self.album)
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
 
         self.assertEqual(res.get('name'), self.album.lower())
         self.assertEqual(res.get('date'), self.album_year)
         self.assertTrue(res.get('url'))
 
+    def test_get_info_pages(self):
+        orig = self.obj.check_next_link
+
+        with nested(patch.object(Lastfm, 'check_next_link'),
+                ) as (mock_next,):
+            mock_next.side_effect = orig
+
+            res = self.obj.get_info(self.artist2, pages_max=self.pages_max)
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+
     def test_get_similar(self):
-        res = self.object.get_similar(self.artist)
+        res = self.obj.get_similar(self.artist)
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
+
+    def test_get_similar_pages(self):
+        orig = self.obj.check_next_link
+
+        with nested(patch.object(Lastfm, 'check_next_link'),
+                ) as (mock_next,):
+            mock_next.side_effect = orig
+
+            res = list(self.obj.get_similar(self.artist, pages_max=self.pages_max))
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class VcdqualityTest(unittest.TestCase):
 
     def setUp(self):
-        self.object = Vcdquality()
         self.pages_max = 3
+        self.max_results = 10
+        self.obj = Vcdquality()
 
-    def test_results(self):
-        res = list(self.object.results(pages_max=self.pages_max))
-        self.assertTrue(res, 'failed to find results')
+    def test_result(self):
+        count = 0
+        for res in self.obj.results(pages_max=self.pages_max):
+            if not res:
+                continue
 
-        for r in res:
-            for key in ('release', 'date', 'page'):
-                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
+            for key in ('release', 'date'):
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
 
-        self.assertEqual(res[-1]['page'], self.pages_max, 'failed to get all results pages: last result page (%s) != max pages (%s)' % (res[-1]['page'], self.pages_max))
+            count += 1
+            if count == self.max_results:
+                break
+
+        self.assertEqual(count, self.max_results)
+
+    def test_results_pages(self):
+        orig = self.obj._next
+
+        with nested(patch.object(Vcdquality, '_next'),
+                ) as (mock_next,):
+            mock_next.side_effect = orig
+
+            res = list(self.obj.results(pages_max=self.pages_max))
+
+        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
-#
-# Utils
-#
-class MagnetUrlTest(unittest.TestCase):
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class OpensubtitlesTest(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.max_results = 10
+        self.obj = Opensubtitles(settings.OPENSUBTITLES_USERNAME, settings.OPENSUBTITLES_PASSWORD)
 
-    def test_parse_single(self):
-        url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE'
-        res = util.parse_magnet_url(url)
+    def test_logged(self):
+        self.assertTrue(self.obj.logged)
 
-        self.assertTrue(isinstance(res, dict))
-        self.assertEqual(res.get('dn'), ['TITLE'])
-        self.assertEqual(res.get('key'), ['VALUE'])
+    def test_results_movie(self):
+        count = 0
+        for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
+            for key in ('filename', 'url'):
+                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
 
-    def test_parse_multiple(self):
-        url = 'magnet:?xt=urn:btih:HASH&dn=TITLE&key=VALUE1&key=VALUE2&key=VALUE3'
-        res = util.parse_magnet_url(url)
+            count += 1
+            if count == self.max_results:
+                break
 
-        self.assertTrue(isinstance(res, dict))
-        self.assertEqual(res.get('dn'), ['TITLE'])
-        self.assertEqual(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
+        self.assertEqual(count, self.max_results, 'failed to find enough subtitles for "%s"' % MOVIE)
+
+    def test_results_tvshow(self):
+        count = 0
+        for res in self.obj.results(TVSHOW,
+                TVSHOW_SEASON, TVSHOW_EPISODE, lang=OPENSUBTITLES_LANG):
+            for key in ('filename', 'url'):
+                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
+
+            count += 1
+            if count == self.max_results:
+                break
+
+        self.assertTrue(count > 1, 'failed to find enough subtitles for "%s" season %s episode %s' % (TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE))
+
+    @unittest.skipIf(not settings.OPENSUBTITLES_USERNAME or not settings.OPENSUBTITLES_PASSWORD, 'missing opensubtitles credentials')
+    def test_save(self):
+        result = False
+        for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
+            with mkdtemp() as temp_dir:
+                try:
+                    saved = self.obj.save(res['url'], os.path.join(temp_dir, res['filename']))
+                    self.assertTrue(saved, 'failed to save subtitles %s (%s)' % (res['filename'], res['url']))
+                    result = True
+                except DownloadQuotaReached:
+                    pass
+            break
+
+        self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)
 
 
-#
-# Search
-#
 @unittest.skipIf(not is_connected, 'not connected to the internet')
 class ThepiratebayTest(unittest.TestCase):
 
     def setUp(self):
         self.pages_max = 3
         self.max_results = 10
-        self.cls = mthepiratebay.Thepiratebay
+        self.obj = Thepiratebay()
 
-    def test_result(self):
+    def test_results(self):
         count = 0
         seeds_count = 0
-        res = None
-        for res in self.cls().results(GENERIC_QUERY):
+        for res in self.obj.results(GENERIC_QUERY):
             if not res:
                 continue
 
-            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
             for key in ('title', 'url', 'category', 'size', 'date'):
                 self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
@@ -647,13 +701,14 @@ class ThepiratebayTest(unittest.TestCase):
             if count == self.max_results:
                 break
 
+        self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
         self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
 
-    def test_sort(self):
+    def test_results_sort(self):
         for sort in ('date', 'popularity'):
             count = 0
             val_prev = None
-            for res in self.cls().results(GENERIC_QUERY, sort=sort):
+            for res in self.obj.results(GENERIC_QUERY, sort=sort):
                 if not res:
                     continue
 
@@ -675,17 +730,16 @@ class ThepiratebayTest(unittest.TestCase):
 
             self.assertTrue(count > self.max_results * 3 / 4.0)
 
-    def test_pages(self):
-        obj = self.cls()
-        orig = obj._next
+    def test_results_pages(self):
+        orig = self.obj._next
 
-        with nested(patch.object(mthepiratebay.Thepiratebay, '_next'),
-                patch.object(mthepiratebay.Thepiratebay, '_get_magnet_url'),
-                ) as (mock_next, mock_get):
+        with nested(patch.object(Thepiratebay, '_next'),
+                patch.object(Result, 'get_hash'),
+                ) as (mock_next, mock_hash):
             mock_next.side_effect = orig
-            mock_get.return_value = None
+            mock_hash.return_value = None
 
-            res = list(self.cls().results(GENERIC_QUERY, pages_max=self.pages_max))
+            res = list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
@@ -696,17 +750,15 @@ class TorrentzTest(unittest.TestCase):
     def setUp(self):
         self.pages_max = 3
         self.max_results = 10
-        self.cls = mtorrentz.Torrentz
+        self.obj = Torrentz()
 
-    def test_result(self):
+    def test_results(self):
         count = 0
         seeds_count = 0
-        res = None
-        for res in self.cls().results(GENERIC_QUERY):
+        for res in self.obj.results(GENERIC_QUERY):
             if not res:
                 continue
 
-            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
             for key in ('title', 'url', 'category', 'size', 'date'):
                 self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
@@ -717,13 +769,14 @@ class TorrentzTest(unittest.TestCase):
             if count == self.max_results:
                 break
 
+        self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
         self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
 
-    def test_sort(self):
+    def test_results_sort(self):
         for sort in ('date',):  # we do not test popularity since torrentz does not really sort by seeds
             count = 0
             val_prev = None
-            for res in self.cls().results(GENERIC_QUERY, sort=sort):
+            for res in self.obj.results(GENERIC_QUERY, sort=sort):
                 if not res:
                     continue
 
@@ -745,17 +798,16 @@ class TorrentzTest(unittest.TestCase):
 
             self.assertTrue(count > self.max_results * 3 / 4.0)
 
-    def test_pages(self):
-        obj = self.cls()
-        orig = obj._next
+    def test_results_pages(self):
+        orig = self.obj._next
 
-        with nested(patch.object(mtorrentz.Torrentz, '_next'),
-                patch.object(mtorrentz.Torrentz, 'get_link_text'),
+        with nested(patch.object(Torrentz, '_next'),
+                patch.object(Torrentz, 'get_link_text'),
                 ) as (mock_next, mock_getlink):
             mock_next.side_effect = orig
             mock_getlink.return_value = None
 
-            res = list(self.cls().results(GENERIC_QUERY, pages_max=self.pages_max))
+            res = list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
@@ -766,17 +818,15 @@ class FilestubeTest(unittest.TestCase):
     def setUp(self):
         self.pages_max = 3
         self.max_results = 10
-        self.cls = mfilestube.Filestube
+        self.obj = Filestube()
+        self.query = 'mediafire'
 
-    def test_result(self):
+    def test_results(self):
         count = 0
-        seeds_count = 0
-        res = None
-        for res in self.cls().results(GENERIC_QUERY):
+        for res in self.obj.results(self.query):
             if not res:
                 continue
 
-            self.assertTrue(res, 'failed to find results for "%s"' % (GENERIC_QUERY))
             for key in ('title', 'url', 'size'):
                 self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
@@ -784,17 +834,18 @@ class FilestubeTest(unittest.TestCase):
             if count == self.max_results:
                 break
 
-    def test_pages(self):
-        obj = self.cls()
-        orig = obj.check_next_link
+        self.assertTrue(count > self.max_results * 2 / 3.0, 'failed to find enough results for "%s"' % (self.query))
 
-        with nested(patch.object(mfilestube.Filestube, 'check_next_link'),
-                patch.object(mfilestube.Filestube, '_get_download_info'),
+    def test_results_pages(self):
+        orig = self.obj.check_next_link
+
+        with nested(patch.object(Filestube, 'check_next_link'),
+                patch.object(Filestube, '_get_download_info'),
                 ) as (mock_next, mock_info):
             mock_next.side_effect = orig
             mock_info.return_value = None
 
-            res = list(obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+            res = list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
