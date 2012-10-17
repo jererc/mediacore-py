@@ -39,7 +39,7 @@ class Google(Base):
         for page, data in self._pages(query, pages_max):
             tree = html.fromstring(data)
             for div in tree.cssselect('div.vsc'):
-                log = html.tostring(div, pretty_print=True)
+                log = html.tostring(div, pretty_print=True)[:1000]
 
                 links = div.cssselect('a')
                 if not links:

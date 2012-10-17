@@ -53,9 +53,9 @@ class Lastfm(Base):
                 if re_name.search(artist):
                     return urljoin(self.url, self._clean_url(links[0].get('href')))
 
-    def _artist_albums(self, url):
+    def _artist_albums(self, url, pages_max):
         tree = None
-        for i in range(MAX_ALBUMS_PAGES):
+        for i in range(pages_max):
             if tree is not None:
                 links = tree.cssselect('.pagination .nextlink')
                 if not links or not self.check_next_link(links[-1]):
@@ -68,7 +68,7 @@ class Lastfm(Base):
 
             tree = html.fromstring(data)
             for tag in tree.cssselect('.album-item'):
-                log = html.tostring(tag, pretty_print=True)
+                log = html.tostring(tag, pretty_print=True)[:1000]
 
                 meta_tags = tag.cssselect('[itemprop="name"]')
                 if not meta_tags:
@@ -107,7 +107,7 @@ class Lastfm(Base):
 
                 yield info_album
 
-    def _get_info(self, query):
+    def _get_info(self, query, pages_max):
         url = self._get_artist_url(query)
         data = self.browser.get_unicode_data(url=url)
         if not data:
@@ -135,15 +135,15 @@ class Lastfm(Base):
             return
 
         url_albums = urljoin(self.url, links[0].get('href'))
-        for info_album in self._artist_albums(url_albums):
+        for info_album in self._artist_albums(url_albums, pages_max):
             if info.get('genre'):
                 info_album['genre'] = info['genre']
             info['albums'].append(info_album)
 
         return info
 
-    def get_info(self, artist, album=None):
-        info = self._get_info(artist)
+    def get_info(self, artist, album=None, pages_max=MAX_ALBUMS_PAGES):
+        info = self._get_info(artist, pages_max)
         if not album:
             return info
         if info:
@@ -165,9 +165,9 @@ class Lastfm(Base):
 
         logger.error('failed to find similar artists link for %s at %s', query, url)
 
-    def _similar_artists(self, url):
+    def _similar_artists(self, url, pages_max):
         tree = None
-        for i in range(MAX_SIMILAR_PAGES):
+        for i in range(pages_max):
             if tree is not None:
                 links = tree.cssselect('.pagination .nextlink')
                 if not links or not self.check_next_link(links[-1]):
@@ -182,8 +182,8 @@ class Lastfm(Base):
             for tag in tree.cssselect('.link-reference h3'):
                 yield clean(tag.text, 1)
 
-    def get_similar(self, query):
+    def get_similar(self, query, pages_max=MAX_SIMILAR_PAGES):
         '''Get similar artists.
         '''
         url = self._get_similar_url(query)
-        return list(self._similar_artists(url))
+        return list(self._similar_artists(url, pages_max))

@@ -92,7 +92,7 @@ class Sputnikmusic(Base):
                 if len(tds) != 2:
                     continue
 
-                log = ''.join([html.tostring(tag, pretty_print=True) for tag in tds])
+                log = ''.join([html.tostring(tag, pretty_print=True) for tag in tds])[:1000]
 
                 info_album = {}
                 if info.get('genre'):
@@ -155,7 +155,7 @@ class Sputnikmusic(Base):
 
             tree = html.fromstring(data)
             for tr in tree.cssselect('tr.alt1'):
-                log = html.tostring(tr, pretty_print=True)
+                log = html.tostring(tr, pretty_print=True)[:1000]
 
                 info = {}
                 try:

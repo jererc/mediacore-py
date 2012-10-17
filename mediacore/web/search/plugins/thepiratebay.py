@@ -103,7 +103,7 @@ class Thepiratebay(Base):
         for page, data in self._pages(query, category, sort, pages_max):
             tree = html.fromstring(data)
             for tr in tree.cssselect('#searchResult tr:not([class="header"])'):
-                log = html.tostring(tr, pretty_print=True)
+                log = html.tostring(tr, pretty_print=True)[:1000]
 
                 result = Result()
                 try:

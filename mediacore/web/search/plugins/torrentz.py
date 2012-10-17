@@ -148,7 +148,7 @@ class Torrentz(Base):
                     if not links:
                         continue
 
-                    log = html.tostring(dl, pretty_print=True)
+                    log = html.tostring(dl, pretty_print=True)[:1000]
 
                     result = Result()
                     title = self.get_link_text(html.tostring(links[0]))

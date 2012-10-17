@@ -26,6 +26,7 @@ def get_year(val):
     if res:
         return int(res.group(1))
 
+
 class Tvrage(Base):
     URL = 'http://www.tvrage.com'
 
@@ -53,7 +54,6 @@ class Tvrage(Base):
             return
 
         info = {'url': self.browser.geturl()}
-
         tree = html.fromstring(data)
 
         # Episode info
@@ -122,10 +122,9 @@ class Tvrage(Base):
             return
 
         res = []
-
         tree = html.fromstring(data)
         for tr in tree.cssselect('table.b tr#brow'):
-            log = html.tostring(tr, pretty_print=True)
+            log = html.tostring(tr, pretty_print=True)[:1000]
 
             try:
                 classification = clean(tr[2].cssselect('td')[0].text).lower()
@@ -163,7 +162,7 @@ class Tvrage(Base):
 
         tree = html.fromstring(data)
         for tr in tree.cssselect('table tr[id="brow"]'):
-            log = html.tostring(tr, pretty_print=True)
+            log = html.tostring(tr, pretty_print=True)[:1000]
             info = {}
 
             try:
