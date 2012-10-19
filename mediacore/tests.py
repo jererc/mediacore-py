@@ -2,24 +2,20 @@
 import os
 import shutil
 import tempfile
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 import subprocess
 import unittest
+from contextlib import contextmanager, nested
 import logging
-
-from contextlib import nested
 
 from mock import patch, Mock
 
-from lxml import html
-
 import settings
 
+from mediacore.util import util
 from mediacore.util.db import connect, get_db
 from mediacore.util.title import Title, clean, get_episode_info
 from mediacore.util.transmission import Transmission
-from mediacore.util import util
 
 from mediacore.model import Base
 
@@ -29,7 +25,6 @@ from mediacore.web.tvrage import Tvrage
 from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
-
 from mediacore.web.vcdquality import Vcdquality
 
 from mediacore.web.search import Result, results
@@ -397,14 +392,14 @@ class GoogleTest(unittest.TestCase):
         self.pages_max = 3
 
     def test_results(self):
-        res = list(self.google.results(GENERIC_QUERY, pages_max=self.pages_max))
-        self.assertTrue(res, 'failed to find results for "%s"' % GENERIC_QUERY)
+        results = list(self.google.results(GENERIC_QUERY, pages_max=self.pages_max))
+        self.assertTrue(results, 'failed to find results for "%s"' % GENERIC_QUERY)
 
-        for r in res:
+        for res in results:
             for key in ('title', 'url', 'page'):
-                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
 
-        self.assertEqual(res[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1]['page'], self.pages_max, GENERIC_QUERY))
+        self.assertEqual(results[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (results[-1]['page'], self.pages_max, GENERIC_QUERY))
 
     def test_get_nb_results(self):
         res = self.google.get_nb_results(GENERIC_QUERY)
@@ -450,9 +445,23 @@ class ImdbTest(unittest.TestCase):
         self.assertEqual(res.get('date'), movie_year)
         self.assertTrue(movie_director in res.get('director'), 'failed to get director for %s: %s' % (movie, res.get('director')))
 
-    # TODO
-    def test_get_similar(self):
-        pass
+    def test_get_similar_title(self):
+        results = self.obj.get_similar(MOVIE, type='title', year=MOVIE_YEAR)
+
+        self.assertTrue(len(results) > 4)
+
+        for res in results:
+            for key in ('title', 'url', 'date'):
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+
+    def test_get_similar_name(self):
+        results = self.obj.get_similar(MOVIE_DIRECTOR, type='name', year=MOVIE_YEAR)
+
+        self.assertEqual(len(results), 4)
+
+        for res in results:
+            for key in ('title', 'url', 'date'):
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
