@@ -20,12 +20,13 @@ from mediacore.util.transmission import Transmission
 from mediacore.model import Base
 
 from mediacore.web.google import Google
+from mediacore.web.youtube import Youtube
 from mediacore.web.imdb import Imdb
 from mediacore.web.tvrage import Tvrage
-from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
+from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 
 from mediacore.web.search import Result, results
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
@@ -106,10 +107,16 @@ class SystemTest(unittest.TestCase):
         stdout, stderr, return_code = popen(bin)
         self.assertEqual(return_code, 0, 'failed to find %s' % bin)
 
+    def test_xvfb(self):
+        bin = 'xvfb-run'
+        stdout, stderr, return_code = popen(bin)
+        self.assertEqual(return_code, 0, 'failed to find %s' % bin)
+
 
 #
 # Title
 #
+
 # TODO
 # class TitleCleanTest(unittest.TestCase):
 
@@ -388,23 +395,48 @@ class MagnetUrlTest(unittest.TestCase):
 class GoogleTest(unittest.TestCase):
 
     def setUp(self):
-        self.google = Google()
+        self.obj = Google()
         self.pages_max = 3
 
     def test_results(self):
-        results = list(self.google.results(GENERIC_QUERY, pages_max=self.pages_max))
-        self.assertTrue(results, 'failed to find results for "%s"' % GENERIC_QUERY)
+        res = list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+        self.assertTrue(len(res) > 10, 'failed to find enough results for "%s"' % GENERIC_QUERY)
 
-        for res in results:
+        for r in res:
             for key in ('title', 'url', 'page'):
-                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
-        self.assertEqual(results[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (results[-1]['page'], self.pages_max, GENERIC_QUERY))
+        self.assertEqual(res[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1]['page'], self.pages_max, GENERIC_QUERY))
 
     def test_get_nb_results(self):
-        res = self.google.get_nb_results(GENERIC_QUERY)
-        self.assertTrue(res, 'failed to get results count for "%s"' % GENERIC_QUERY)
+        res = self.obj.get_nb_results(GENERIC_QUERY)
         self.assertTrue(res > 0, 'failed to get results count for "%s"' % GENERIC_QUERY)
+
+
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class YoutubeTest(unittest.TestCase):
+
+    def setUp(self):
+        self.obj = Youtube()
+
+    def test_results(self):
+        res = list(self.obj.results(GENERIC_QUERY))
+        self.assertTrue(len(res) > 10, 'failed to find enough results for "%s"' % GENERIC_QUERY)
+
+        for r in res:
+            for key in ('title', 'duration', 'urls_thumbnails', 'url_watch'):
+                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
+
+    def test_get_trailer(self):
+        res = self.obj.get_trailer(MOVIE)
+        self.assertTrue(res, 'failed to find trailer for "%s"' % MOVIE)
+        self.assertTrue('trailer' in res['title'].lower(), 'failed to find movie title "%s" in "%s"' % (MOVIE, res['title']))
+
+    def test_get_track(self):
+        res = self.obj.get_track(BAND, ALBUM)
+        self.assertTrue(res, 'failed to find track for band "%s" album "%s" ' % (BAND, ALBUM))
+        self.assertTrue(BAND.lower() in res['title'].lower(), 'failed to find artist "%s" in "%s"' % (BAND, res['title']))
+        self.assertTrue(ALBUM.lower() in res['title'].lower(), 'failed to find album "%s" in "%s"' % (ALBUM, res['title']))
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
@@ -446,22 +478,22 @@ class ImdbTest(unittest.TestCase):
         self.assertTrue(movie_director in res.get('director'), 'failed to get director for %s: %s' % (movie, res.get('director')))
 
     def test_get_similar_title(self):
-        results = self.obj.get_similar(MOVIE, type='title', year=MOVIE_YEAR)
+        res = self.obj.get_similar(MOVIE, type='title', year=MOVIE_YEAR)
 
-        self.assertTrue(len(results) > 4)
+        self.assertTrue(len(res) > 4)
 
-        for res in results:
+        for r in res:
             for key in ('title', 'url', 'date'):
-                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
     def test_get_similar_name(self):
-        results = self.obj.get_similar(MOVIE_DIRECTOR, type='name', year=MOVIE_YEAR)
+        res = self.obj.get_similar(MOVIE_DIRECTOR, type='name', year=MOVIE_YEAR)
 
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(res), 4)
 
-        for res in results:
+        for r in res:
             for key in ('title', 'url', 'date'):
-                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')
@@ -481,6 +513,15 @@ class TvrageTest(unittest.TestCase):
                 'latest_episode', 'url', 'country', 'date', 'airs',
                 'genre'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, TVSHOW))
+
+    def test_get_similar(self):
+        res = self.obj.get_similar(TVSHOW)
+
+        self.assertTrue(len(res) > 1, 'failed to get similar for "%s"' % TVSHOW)
+
+        for r in res:
+            for key in ('title', 'url'):
+                self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
     def test_scheduled_shows(self):
         count = 0
@@ -502,9 +543,11 @@ class TvrageTest(unittest.TestCase):
             if count == self.max_results:
                 break
 
+        print season_count
+
         self.assertEqual(count, self.max_results)
-        self.assertTrue(season_count > self.max_results * 2 / 3.0)
-        self.assertTrue(episode_count > self.max_results * 2 / 3.0)
+        self.assertTrue(season_count > self.max_results / 2)
+        self.assertTrue(episode_count > self.max_results / 2)
 
 
 @unittest.skipIf(not is_connected, 'not connected to the internet')

@@ -2,20 +2,18 @@ import re
 from urlparse import urljoin
 import logging
 
-from lxml import html
+from filetools.title import Title, clean
 
 from mediacore.web import Base
-from mediacore.util.title import Title, clean
 
 
-RE_TITLE_URL = re.compile(r'/title/[\w\d]+', re.I)
 RE_URLS = {
     'title': re.compile(r'/title/[\w\d]+', re.I),
     'name': re.compile(r'/name/[\w\d]+', re.I),
     }
-RE_TITLE = re.compile(r'(.*)\s+\((\d{4})\)$', re.I)
-RE_DATE = re.compile(r'<title>.*?\(.*?(\d{4}).*?\).*?</title>', re.I)
-RE_LIST_DATE = re.compile(r'\b(\d{4})\b', re.I)
+RE_TITLE = re.compile(r'(.*)\s+\((\d{4})\)$')
+RE_DATE = re.compile(r'.*?\(.*?(\d{4}).*?\).*?')
+RE_LIST_DATE = re.compile(r'\b(\d{4})\b')
 RE_NAMES_EXCL = re.compile(r'(more credit|full cast)', re.I)
 
 logger = logging.getLogger(__name__)
@@ -27,51 +25,47 @@ class Imdb(Base):
 
     def _get_urls(self, query, type='title'):
         self.browser.addheaders = [('Accept-Language', 'en-US,en')]
-        if self.submit_form(self.url, fields={'q': query}):
+        if self.browser.submit_form(self.url, fields={'q': query}):
             url = self.browser.geturl()
             if RE_URLS[type].search(url):
                 return [url]
-
             return [r.absolute_url for r in self.browser.links(
                     text_regex=Title(query).get_search_re(),
                     url_regex=RE_URLS[type])]
 
-    def _get_data(self, url):
-        self.browser.clear_history()
-        res = self.browser.open(url)
+    def _get_date(self):
+        res = self.browser.cssselect('title')
         if res:
-            return res.get_data()
+            date = RE_DATE.findall(res[0].text)
+            if date:
+                return int(date[0])
 
     def _get_title_url_info(self, url):
-        data = self._get_data(url)
-        if not data:
+        if not self.browser.open(url):
             return
-
         info = {'url': url}
 
-        res = RE_DATE.search(data)
-        if res:
-            info['date'] = int(res.group(1))
+        date = self._get_date()
+        if date:
+            info['date'] = date
         else:
             logger.debug('failed to get date from %s', url)
 
-        tree = html.fromstring(data)
-
-        res = tree.get_element_by_id('img_primary').cssselect('img')
+        res = self.browser.cssselect('#img_primary img')
         if res:
             info['url_thumbnail'] = res[0].get('src')
-        res = tree.cssselect('div.star-box-giga-star')
+
+        res = self.browser.cssselect('div.star-box-giga-star')
         if res:
             info['rating'] = float(clean(res[0].text))
 
-        res = tree.cssselect('.infobar')
+        res = self.browser.cssselect('.infobar')
         if res:
             info['details'] = clean(res[0].text, 1)
 
-        tags = tree.cssselect('div.txt-block') + tree.cssselect('div.inline')
+        tags = self.browser.cssselect('div.txt-block', []) + self.browser.cssselect('div.inline', [])
         for tag in tags:
             title = clean(tag[0].text, 1)
-
             if title.startswith('director'):
                 info['director'] = [clean(a.text, 1) for a in tag.cssselect('a') if not RE_NAMES_EXCL.search(a.text)]
             elif title == 'stars':
@@ -86,10 +80,8 @@ class Imdb(Base):
         return info
 
     def _get_name_url_info(self, url):
-        data = self._get_data(url)
-        if not data:
+        if not self.browser.open(url):
             return
-
         info = {
             'url': url,
             'titles_known_for': [],
@@ -97,10 +89,8 @@ class Imdb(Base):
             'titles_actor': [],
             }
 
-        tree = html.fromstring(data)
-
         # Get "known for" titles
-        for div in tree.cssselect('div#knownfor div'):
+        for div in self.browser.cssselect('div#knownfor div', []):
             links = div.cssselect('a')
             if not links:
                 continue
@@ -120,7 +110,7 @@ class Imdb(Base):
 
         # Get filmography
         category = None
-        for div in tree.cssselect('div'):
+        for div in self.browser.cssselect('div', []):
             id_ = div.get('id')
             if id_ == 'filmo-head-Director':
                 category = 'titles_director'
@@ -142,9 +132,9 @@ class Imdb(Base):
                 # Get date
                 spans = div.cssselect('span')
                 if spans:
-                    res = RE_LIST_DATE.search(spans[0].text)
+                    res = RE_LIST_DATE.findall(spans[0].text)
                     if res:
-                        title['date'] = int(res.group(1))
+                        title['date'] = int(res[0])
 
                 info[category].append(title)
 

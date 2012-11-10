@@ -4,8 +4,9 @@ import logging
 
 from lxml import html
 
+from filetools.title import Title, clean
+
 from mediacore.web import Base
-from mediacore.util.title import Title, clean
 
 
 MIN_ALBUM_TRACKS = 4
@@ -28,25 +29,18 @@ class Lastfm(Base):
         return url.replace(' ', '+')
 
     def _get_results_url(self, query):
-        res = self.submit_form(self.url, fields={'q': query})
-        data = self.browser.get_unicode_data(response=res)
-        if not data:
-            return
-
-        tree = html.fromstring(data)
-        for tag in tree.cssselect('#artistResults a'):
+        self.browser.submit_form(self.url, fields={'q': query})
+        for tag in self.browser.cssselect('#artistResults a', []):
             if RE_ARTISTS.search(tag.text):
                 return urljoin(self.url, self._clean_url(tag.get('href')))
 
     def _get_artist_url(self, query):
         url = self._get_results_url(query)
-        data = self.browser.get_unicode_data(url=url)
-        if not data:
+        if not url:
             return
-
         re_name = Title(query).get_search_re()
-        tree = html.fromstring(data)
-        for tag in tree.cssselect('.artistsWithInfo li'):
+        self.browser.open(url)
+        for tag in self.browser.cssselect('.artistsWithInfo li', []):
             links = tag.cssselect('a')
             if links:
                 artist = clean(self.get_link_text(html.tostring(links[0])))
@@ -54,36 +48,30 @@ class Lastfm(Base):
                     return urljoin(self.url, self._clean_url(links[0].get('href')))
 
     def _artist_albums(self, url, pages_max):
-        tree = None
         for i in range(pages_max):
-            if tree is not None:
-                links = tree.cssselect('.pagination .nextlink')
+            if i > 0:
+                links = self.browser.cssselect('.pagination .nextlink')
                 if not links or not self.check_next_link(links[-1]):
                     return
                 url = urljoin(self.url, links[-1].get('href'))
 
-            data = self.browser.get_unicode_data(url=url)
-            if not data:
-                return
-
-            tree = html.fromstring(data)
-            for tag in tree.cssselect('.album-item'):
+            self.browser.open(url)
+            for tag in self.browser.cssselect('.album-item', []):
                 log = html.tostring(tag, pretty_print=True)[:1000]
 
                 meta_tags = tag.cssselect('[itemprop="name"]')
                 if not meta_tags:
                     continue
-
                 name = clean(meta_tags[0].get('content', ''), 1)
                 if not name:
                     continue
                 info_album = {'name': name}
 
                 url_tags = tag.cssselect('a')
-                if not url_tags:
-                    logger.error('failed to get album url from %s', log)
-                else:
+                if url_tags:
                     info_album['url'] = urljoin(self.url, url_tags[0].get('href'))
+                else:
+                    logger.error('failed to get album url from %s' % log)
 
                 date_tags = tag.cssselect('time')
                 if not date_tags:
@@ -109,25 +97,24 @@ class Lastfm(Base):
 
     def _get_info(self, query, pages_max):
         url = self._get_artist_url(query)
-        data = self.browser.get_unicode_data(url=url)
-        if not data:
+        if not url:
             return
+        self.browser.open(url)
 
         info = {
             'url_band': url,
             'albums': [],
             }
 
-        tree = html.fromstring(data)
         genre = []
-        for tag in tree.cssselect('.tags li a'):
+        for tag in self.browser.cssselect('.tags li a', []):
             if not RE_MORE_TAGS.search(tag.text):
                 genre.append(clean(tag.text))
         if genre:
             info['genre'] = genre
 
         # Get albums
-        links = tree.cssselect('.artist-top-albums a')
+        links = self.browser.cssselect('.artist-top-albums a')
         if not links:
             logger.debug('failed to find albums link for "%s" at %s', query, url)
             return info
@@ -154,32 +141,24 @@ class Lastfm(Base):
 
     def _get_similar_url(self, query):
         url = self._get_artist_url(query)
-        data = self.browser.get_unicode_data(url=url)
-        if not data:
+        if not url:
             return
-
-        tree = html.fromstring(data)
-        links = tree.cssselect('.similar-artists a')
+        self.browser.open(url)
+        links = self.browser.cssselect('.similar-artists a')
         if links and RE_SIMILAR.search(links[0].text):
             return urljoin(self.url, links[0].get('href'))
-
         logger.error('failed to find similar artists link for %s at %s', query, url)
 
     def _similar_artists(self, url, pages_max):
-        tree = None
         for i in range(pages_max):
-            if tree is not None:
-                links = tree.cssselect('.pagination .nextlink')
+            if i > 0:
+                links = self.browser.cssselect('.pagination .nextlink')
                 if not links or not self.check_next_link(links[-1]):
                     return
                 url = urljoin(self.url, links[-1].get('href'))
 
-            data = self.browser.get_unicode_data(url=url)
-            if not data:
-                return
-
-            tree = html.fromstring(data)
-            for tag in tree.cssselect('.link-reference h3'):
+            self.browser.open(url)
+            for tag in self.browser.cssselect('.link-reference h3', []):
                 yield clean(tag.text, 1)
 
     def get_similar(self, query, pages_max=MAX_SIMILAR_PAGES):

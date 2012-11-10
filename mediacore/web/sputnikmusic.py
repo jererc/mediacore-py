@@ -5,8 +5,9 @@ import logging
 
 from lxml import html
 
+from filetools.title import Title, clean
+
 from mediacore.web import Base
-from mediacore.util.title import Title, is_url, clean
 
 
 URL_REVIEWS_STAFF = 'http://www.sputnikmusic.com/staffreviews.php'
@@ -14,7 +15,7 @@ URL_REVIEWS_CONTRIB = 'http://www.sputnikmusic.com/contribreviews.php'
 RE_URL_BAND = re.compile(r'/bands/', re.I)
 RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
-RE_SUGGESTIONS = re.compile(r'search\sresults:', re.I)
+RE_SUGGESTIONS = re.compile(r'search results:', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -22,62 +23,45 @@ logger = logging.getLogger(__name__)
 class Sputnikmusic(Base):
     URL = 'http://www.sputnikmusic.com/'
 
-    def _get_data(self, query):
-        if is_url(query):
-            res = self.browser.open(query)
-            if res:
-                return res.get_data()
-
-        else:
-            res = self.submit_form(self.url, fields={'search_text': query})
-            if not res:
+    def _get_band_url(self, artist):
+        if not self.browser.submit_form(self.url,
+                fields={'search_text': artist}):
+            return
+        if RE_SUGGESTIONS.search(self.browser.tree.text_content()):
+            re_name = Title(artist).get_search_re()
+            if not self.browser.follow_link(text_regex=re_name):
                 return
-            data = res.get_data()
-            if not data:
-                return
-            if not RE_SUGGESTIONS.search(data):
-                return data
-
-            re_name = Title(query).get_search_re()
-            for link in self.browser.links(text_regex=re_name):
-                res = self.browser.open(link.absolute_url)
-                if res:
-                    return res.get_data()
+        url = self.browser.geturl()
+        if RE_URL_BAND.search(url):
+            return url
 
     def _get_info(self, artist):
-        data = self._get_data(artist)
-        if not data:
+        url = self._get_band_url(artist)
+        if not url:
             return
-        url_band = self.browser.geturl()
-        if not RE_URL_BAND.search(url_band):
-            return
-
         info = {
-            'url_band': url_band,
+            'url_band': url,
             'albums': [],
             }
 
-        tree = html.fromstring(data)
-
         # Get band info
-        band_info = tree.cssselect('table.bandbox td')
+        band_info = self.browser.cssselect('table.bandbox td')
         try:
             info['name'] = clean(band_info[0][0][0].text, 1)
         except Exception:
-            logger.error('failed to get band name from %s', url_band)
+            logger.error('failed to get band name from %s' % url)
         try:
             info['genre'] = [clean(t.text, 1) for t in band_info[0][1] if t.text]
         except Exception:
-            logger.error('failed to get band genre from %s', url_band)
+            logger.error('failed to get band genre from %s' % url)
 
         # Get similar bands
-        for tag in tree.cssselect('p.alt2'):
+        for tag in self.browser.cssselect('p.alt2', []):
             if clean(tag[0][0].text, 1) == 'similar bands':
                 info['similar_bands'] = [clean(t.text, 1) for t in tag[1:]]  # skip the caption
                 break
 
-        for table in tree.cssselect('table.plaincontentbox'):
-
+        for table in self.browser.cssselect('table.plaincontentbox', []):
             # Get albums
             albums = []
             for tr in table:
@@ -101,14 +85,14 @@ class Sputnikmusic(Base):
                 try:
                     info_album['name'] = clean(tds[1][0][0][0][0].text, 1)
                 except Exception:
-                    logger.error('failed to get album name from %s', log)
+                    logger.error('failed to get album name from %s' % log)
                     continue
                 if not info_album['name']:
                     continue
                 try:
                     info_album['url'] = urljoin(self.url, tds[0][0].get('href'))
                 except Exception:
-                    logger.error('failed to get album url from %s', log)
+                    logger.error('failed to get album url from %s' % log)
                     continue
                 try:
                     info_album['rating'] = float(tds[1][-1][0][0][0][0][0].text)
@@ -123,7 +107,7 @@ class Sputnikmusic(Base):
                 try:
                     info_album['url_cover'] = urljoin(self.url, tds[0][0][0].get('src'))
                 except Exception:
-                    logger.error('failed to get cover url from %s', log)
+                    logger.error('failed to get cover url from %s' % log)
 
                 info['albums'].append(info_album)
 
@@ -148,64 +132,39 @@ class Sputnikmusic(Base):
 
     def reviews(self):
         for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):
-            data = self._get_data(url)
-            if not data:
-                logger.error('failed to get data from %s', url)
-                continue
-
-            tree = html.fromstring(data)
-            for tr in tree.cssselect('tr.alt1'):
+            self.browser.open(url)
+            for tr in self.browser.cssselect('tr.alt1', []):
                 log = html.tostring(tr, pretty_print=True)[:1000]
 
                 info = {}
                 try:
                     info['artist'] = clean(tr[1][0][0][0].text, 1)
                 except Exception:
-                    logger.error('failed to get artist from %s', log)
+                    logger.error('failed to get artist from %s' % log)
                     continue
                 try:
                     info['album'] = clean(tr[1][0][0][1].text, 1)
                 except Exception:
-                    logger.error('failed to get album from %s', log)
+                    logger.error('failed to get album from %s' % log)
                     continue
                 try:
                     info['rating'] = float(tr[1][1].text)
                 except Exception:
-                    logger.error('failed to get rating from %s', log)
+                    logger.error('failed to get rating from %s' % log)
                     continue
                 try:
                     y, m, d = RE_DATE_REVIEW.search(tr[1][-1].text).groups()
                     info['date'] = datetime(int(y), int(m), int(d))
                 except Exception:
-                    logger.debug('failed to get date from %s', log)
+                    logger.debug('failed to get date from %s' % log)
                     continue
                 try:
                     info['url_review'] = urljoin(self.url, tr[1][0].get('href'))
                 except Exception:
-                    logger.error('failed to get review url from %s', log)
+                    logger.error('failed to get review url from %s' % log)
                 try:
                     info['url_thumbnail'] = urljoin(self.url, tr[0][0][0].get('src'))
                 except Exception:
-                    logger.error('failed to get thumbnail url from %s', log)
+                    logger.error('failed to get thumbnail url from %s' % log)
 
                 yield info
-
-    # def _get_menu_url(self, text):
-    #     data = self.browser.response().get_data()
-    #     if not data:
-    #         return
-    #     tree = html.fromstring(data)
-    #     re_text = re.compile(r'%s' % text, re.I)
-    #     for link in tree.cssselect('#tabnav li a'):
-    #         if re_text.search(link.text):
-    #             return urljoin(self.url, link.get('href'))
-
-    # def releases(self):
-    #     url = self._get_menu_url('new releases')
-    #     if not url:
-    #         logger.error('failed to find new releases link')
-    #         return
-    #     data = self.browser.open(url).get_data()
-    #     if not data:
-    #         return
-    #     tree = html.fromstring(data)

@@ -1,12 +1,13 @@
 from datetime import datetime
 
-from mediacore.model import Base
+from mediacore.utils.db import Model
 
 
-class Sync(Base):
+class Sync(Model):
     COL = 'syncs'
 
-    def add(self, username, password, media_id, dst, parameters=None):
+    @classmethod
+    def add(cls, username, password, media_id, dst, parameters=None):
         doc = {
             'username': username,
             'password': password,
@@ -15,6 +16,6 @@ class Sync(Base):
             }
         if media_id:
             doc['media_id'] = media_id
-        if not self.find_one(doc):
+        if not cls.find_one(doc):
             doc['created'] = datetime.utcnow()
-            return self.insert(doc, safe=True)
+            return cls.insert(doc, safe=True)

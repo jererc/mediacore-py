@@ -1,18 +1,20 @@
 import os.path
 from datetime import datetime
 
-from mediacore.model import Base
-from mediacore.util.media import files, get_file
-from mediacore.util.title import clean
+from mediacore.utils.db import Model
+
+from filetools.media import files, get_file, get_mtime
+from filetools.title import clean
 
 
 TYPES = ['video', 'audio']
 
 
-class Media(Base):
+class Media(Model):
     COL = 'media'
 
-    def add(self, file):
+    @classmethod
+    def add(cls, file):
         '''Add a file or path.
         '''
         for file_ in files(file, types=TYPES):
@@ -26,7 +28,7 @@ class Media(Base):
                 'type': file_.type,
                 'info': info,
                 }
-            res = self.update({'$or': [
+            res = cls.update({'$or': [
                     {'files': file_.file},
                     {'name': name},
                     ]},
@@ -37,12 +39,14 @@ class Media(Base):
             if not res['updatedExisting']:
                 doc['files'] = [file_.file]
                 doc['created'] = datetime.utcnow()
-                self.insert(doc, safe=True)
+                doc['date'] = get_mtime(file_.file)
+                cls.insert(doc, safe=True)
 
-    def get_bases(self, id, dirs_only=False):
+    @classmethod
+    def get_bases(cls, id, dirs_only=False):
         '''Get the Media base directories or files.
         '''
-        media = Media().get(id)
+        media = cls.get(id)
         if media:
             files = dict([(os.path.dirname(f), f) for f in media['files'] if os.path.exists(f)]).values()
             res = [get_file(f).get_base() for f in files]
@@ -51,7 +55,8 @@ class Media(Base):
             if res:
                 return list(set(res))
 
-    def search(self, name, category, **kwargs):
+    @classmethod
+    def search(cls, name, category, **kwargs):
         '''Get media matching the parameters.
         '''
         spec = {'info.subtype': category}
@@ -72,10 +77,11 @@ class Media(Base):
             if kwargs.get('album'):
                 spec['info.album'] = clean(kwargs['album'], 1)
 
-        return list(self.find(spec))
+        return list(cls.find(spec))
 
-    def search_files(self, *args, **kwargs):
+    @classmethod
+    def search_files(cls, *args, **kwargs):
         files = []
-        for res in self.search(*args, **kwargs):
+        for res in cls.search(*args, **kwargs):
             files.extend(res['files'])
         return files

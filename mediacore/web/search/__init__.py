@@ -3,10 +3,12 @@ import re
 from datetime import datetime
 import logging
 
-from mediacore.util.title import Title, clean, get_size
-from mediacore.util.util import in_range, list_in, parse_magnet_url
+from filetools.title import Title, clean, get_size
+from filetools.utils import in_range
 
 from systools.system import dotdict
+
+from mediacore.utils.utils import list_in, parse_magnet_url
 
 
 PLUGINS_DIR = 'plugins'
@@ -150,7 +152,7 @@ def get_query(query, category=None):
     return query
 
 def results(query, **kwargs):
-    '''Get search results.
+    '''Iterate over search results.
     '''
     plugins = kwargs.get('plugins', _get_plugins())
     for plugin in plugins:

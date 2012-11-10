@@ -1,34 +1,37 @@
 from pymongo.objectid import ObjectId
 
-from mediacore.model import Base
+from mediacore.utils.db import Model
 
 
-class Worker(Base):
+class Worker(Model):
     COL = 'workers'
 
-    def get(self, worker):
+    @classmethod
+    def get(cls, worker):
         '''Get the worker document.
         Create one if it does not exist.
 
         :param worker: worker name
         '''
-        doc = self.find_one({'worker': worker})
+        doc = cls.find_one({'worker': worker})
         if not doc:
             doc = {
                 '_id': ObjectId(),
                 'worker': worker,
                 }
-            self.save(doc, safe=True)
+            cls.save(doc, safe=True)
         return doc
 
-    def get_attr(self, worker, attr, default=None):
+    @classmethod
+    def get_attr(cls, worker, attr, default=None):
         '''Get an attribute.
         '''
-        config = self.get(worker)
+        config = cls.get(worker)
         return config.get(attr, default)
 
-    def set_attr(self, worker, attr, value):
+    @classmethod
+    def set_attr(cls, worker, attr, value):
         '''Set an attribute.
         '''
-        config = self.get(worker)
-        self.update({'_id': config['_id']}, {'$set': {attr: value}}, safe=True)
+        config = cls.get(worker)
+        cls.update({'_id': config['_id']}, {'$set': {attr: value}}, safe=True)

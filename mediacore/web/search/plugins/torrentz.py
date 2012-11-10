@@ -5,10 +5,11 @@ import logging
 
 from lxml import html
 
+from filetools.title import Title, clean, is_url
+
 from mediacore.web import Base, Browser
 from mediacore.web.search import Result, SearchError
-from mediacore.util.title import Title, clean, is_url
-from mediacore.util.util import parse_magnet_url, RE_URL_MAGNET
+from mediacore.utils.utils import parse_magnet_url, RE_URL_MAGNET
 
 
 PRIORITY = 1
@@ -37,58 +38,27 @@ class Torrentz(Base):
         'http://torrentz.piratereverse.info',
         ]
 
-    def _sort(self, sort):
-        res = self.browser.follow_link(text_regex=RE_URL_SORT[sort])
-        return res or self.browser.response()
-
-    def _next(self, page):
-        return self.browser.follow_link(
-                text_regex=re.compile(r'^%s$' % page),
-                url_regex=re.compile(r'\bp=%s\b' % (page - 1), re.I))
-
-    def _pages(self, query, sort='date', pages_max=1):
-        for page in range(1, pages_max + 1):
-            if page > 1:
-                res = self._next(page)
-            else:
-                self.browser.clear_history()
-                if is_url(query):
-                    res = self.browser.open(query)
-                else:
-                    res = self.submit_form(self.url, index=0, fields={'f': query})
-                    if res and sort != 'popularity':     # default sort is peers ('popularity')
-                        res = self._sort(sort)
-
-            if res:
-                data = res.get_data()
-                if not data:
-                    if page > 1:
-                        return
-                    raise SearchError('no data')
-
-                yield page, data
-
     def _mirror_urls(self, url):
         '''Iterate over mirror urls.
         '''
         browser = Browser()
-        res = browser.open(url)
-        if not res:
-            return
-        data = res.get_data()
-        if not data:
-            return
-
-        tree = html.fromstring(data)
-        links = tree.cssselect('div.download dl a')
-        if not links:
+        browser.open(url)
+        results = browser.cssselect('div.download dl')
+        if not results:
             logger.error('failed to get mirror urls from %s', url)
             return
 
-        for link in links:
-            mirror_url = link.get('href')
-            if not mirror_url.startswith('/'):
-                yield mirror_url
+        for result in results:
+            # Skip sponsored links
+            tags = result.cssselect('dd')
+            if tags and 'sponsored link' in clean(html.tostring(tags[0]), 1):
+                continue
+
+            links = result.cssselect('dt a')
+            if links:
+                mirror_url = links[0].get('href')
+                if not mirror_url.startswith('/'):
+                    yield mirror_url
 
     def _torrent_urls(self, url):
         '''Iterate over torrent urls fetched from the raw html data.
@@ -123,25 +93,45 @@ class Torrentz(Base):
                 return key
         return 'other'
 
+    def _next(self, page):
+        return self.browser.follow_link(
+                text_regex=re.compile(r'^%s$' % page),
+                url_regex=re.compile(r'\bp=%s\b' % (page - 1), re.I))
+
+    def _sort(self, sort):
+        return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
+
     def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
-        for page, data in self._pages(query, sort, pages_max):
-            tree = html.fromstring(data)
+        self.browser.clear_history()
+
+        for page in range(1, pages_max + 1):
+            if page > 1:
+                if not self._next(page):
+                    break
+            else:
+                if is_url(query):
+                    self.browser.open(query)
+                else:
+                    res = self.browser.submit_form(self.url, index=0, fields={'f': query})
+                    if res and sort != 'popularity':     # default sort is peers ('popularity')
+                        self._sort(sort)
+
+            divs = self.browser.cssselect('div.results')
+            if divs is None:
+                raise SearchError('no data')
 
             # Skip approximate matches
-            res = tree.cssselect('div.results h3')
+            res = self.browser.cssselect('div.results h3')
             if not res:
                 logger.error('failed to check approximate matches at %s', self.browser.geturl())
             elif RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
                 break
 
-            for div in tree.cssselect('div.results'):
-
+            for div in divs:
                 # Skip sponsored links
-                try:
-                    if div.cssselect('h2')[0].text.lower() == 'sponsored links':
-                        continue
-                except Exception:
-                    pass
+                tags = div.cssselect('h2')
+                if tags and 'sponsored link' in clean(html.tostring(tags[0]), 1):
+                    continue
 
                 for dl in div.cssselect('dl'):
                     links = dl.cssselect('a')
@@ -169,13 +159,13 @@ class Torrentz(Base):
                         continue
 
                     try:
-                        date = dl.find_class('a')[0][0].get('title')
+                        date = dl.cssselect('.a')[0][0].get('title')
                         result.date = self._get_date(date)
                     except Exception:
                         logger.debug('failed to get date from %s', log)
                         continue
                     try:
-                        size = dl.find_class('s')[0].text
+                        size = dl.cssselect('.s')[0].text
                     except Exception:
                         logger.debug('failed to get size from %s', log)
                         continue
@@ -186,14 +176,14 @@ class Torrentz(Base):
                         continue
 
                     try:
-                        seeds = dl.find_class('d')[0].text
+                        seeds = dl.cssselect('.d')[0].text
                         result.seeds = int(seeds.replace(',', ''))
                     except Exception:
                         logger.debug('failed to get seeds from %s', log)
 
                     # Find torrent url
                     url_info = urljoin(self.url, links[0].get('href'))
-                    result.type = 'magnet'
+                    result.type = 'torrent'
                     result.url = self._get_torrent_url(query, url_info)
                     if not result.url:
                         continue

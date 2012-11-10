@@ -1,10 +1,11 @@
-from mediacore.model import Base
+from mediacore.utils.db import Model
 
 
-class Release(Base):
+class Release(Model):
     COL = 'releases'
 
-    def get_search(self, release, langs=None):
+    @classmethod
+    def get_search(cls, release, langs=None):
         subtype = release['info']['subtype']
         res = {
             'name': release['name'],

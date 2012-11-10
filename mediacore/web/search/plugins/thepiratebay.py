@@ -4,9 +4,10 @@ import logging
 
 from lxml import html
 
+from filetools.title import clean, is_url
+
 from mediacore.web import Base
 from mediacore.web.search import Result, SearchError
-from mediacore.util.title import clean, is_url
 
 
 PRIORITY = 0
@@ -37,47 +38,9 @@ class Thepiratebay(Base):
         'http://unblockedpiratebay.com',
         ]
 
-    def _sort(self, sort):
-        res = self.browser.follow_link(text_regex=RE_URL_SORT[sort])
-        return res or self.browser.response()
-
-    def _next(self, page):
-        return self.browser.follow_link(
-                text_regex=re.compile(r'^\D*%s\D*$' % page),
-                url_regex=re.compile(r'/%s/' % (page - 1), re.I))
-
-    def _pages(self, query, category=None, sort='date', pages_max=1):
-        for page in range(1, pages_max + 1):
-            if page > 1:
-                res = self._next(page)
-            else:
-                self.browser.clear_history()
-                if is_url(query):
-                    res = self.browser.open(query)
-                else:
-                    fields = {'q': query}
-                    if category:
-                        val = CAT_DEF.get(category.lower())
-                        if val:
-                            fields[val] = ['on']
-                    res = self.submit_form(self.url, fields=fields)
-                    if res:
-                        res = self._sort(sort)
-
-            if res:
-                data = res.get_data()
-                if not data:
-                    if page > 1:
-                        return
-                    raise SearchError('no data')
-                elif RE_OVERLOAD.search(data):
-                    raise SearchError('overload')
-
-                yield page, data
-
     def _get_date(self, val):
         d, t = RE_DATE.search(val).group(1, 2)
-        now = datetime.utcnow()
+        now = datetime.now()
         if 'ago' in t:
             date = now - timedelta(minutes=int(d))
         elif d.lower() == 'y-day':
@@ -99,10 +62,42 @@ class Thepiratebay(Base):
             if url.startswith('magnet:?'):
                 return url
 
+    def _next(self, page):
+        return self.browser.follow_link(
+                text_regex=re.compile(r'^\D*%s\D*$' % page),
+                url_regex=re.compile(r'/%s/' % (page - 1), re.I))
+
+    def _sort(self, sort):
+        return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
+
     def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
-        for page, data in self._pages(query, category, sort, pages_max):
-            tree = html.fromstring(data)
-            for tr in tree.cssselect('#searchResult tr:not([class="header"])'):
+        self.browser.clear_history()
+
+        for page in range(1, pages_max + 1):
+            if page > 1:
+                if not self._next(page):
+                    break
+            else:
+                if is_url(query):
+                    res = self.browser.open(query)
+                else:
+                    fields = {'q': query}
+                    if category:
+                        val = CAT_DEF.get(category.lower())
+                        if val:
+                            fields[val] = ['on']
+                    res = self.browser.submit_form(self.url, fields=fields)
+                    if res:
+                        self._sort(sort)
+
+            trs = self.browser.cssselect('#searchResult tr:not([class="header"])')
+            if not trs:
+                if trs is None:
+                    raise SearchError('no data')
+                elif RE_OVERLOAD.search(self.browser.tree.text_content()):
+                    raise SearchError('overload')
+
+            for tr in trs:
                 log = html.tostring(tr, pretty_print=True)[:1000]
 
                 result = Result()
@@ -117,7 +112,7 @@ class Thepiratebay(Base):
                     continue
                 result.title = res[0].text
 
-                result.type = 'magnet'
+                result.type = 'torrent'
                 result.url = self._get_magnet_url(tr)
                 if not result.url:
                     logger.error('failed to get magnet url from %s', log)
@@ -125,7 +120,7 @@ class Thepiratebay(Base):
                 if not result.get_hash():
                     continue
 
-                res = tr.find_class('detDesc')
+                res = tr.cssselect('.detDesc')
                 if not res:
                     logger.error('failed to get details from %s', log)
                     continue

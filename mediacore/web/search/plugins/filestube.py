@@ -4,9 +4,10 @@ import logging
 
 from lxml import html
 
-from mediacore.web import Base
+from filetools.title import clean, get_size
+
+from mediacore.web import Base, Browser
 from mediacore.web.search import Result, SearchError
-from mediacore.util.title import clean, get_size
 
 
 PRIORITY = 2
@@ -30,12 +31,9 @@ class Filestube(Base):
                 return site
 
     def _get_download_info(self, url):
-        data = self.browser.get_unicode_data(url=url)
-        if not data:
-            return
-
-        tree = html.fromstring(data)
-        tags = tree.cssselect('#copy_paste_links')
+        browser = Browser()
+        browser.open(url)
+        tags = browser.cssselect('#copy_paste_links')
         if not tags:
             return
         urls = tags[0].text.splitlines()
@@ -43,7 +41,7 @@ class Filestube(Base):
             return
 
         size = 0
-        for tag in tree.cssselect('#js_files_list tr .tright'):
+        for tag in browser.cssselect('#js_files_list tr .tright', []):
             size_ = get_size(tag.text)
             if size_:
                 size += size_
@@ -64,24 +62,22 @@ class Filestube(Base):
             raise SearchError('failed to find advanced search link')
         url = links[0].absolute_url
 
-        tree = None
         for i in range(pages_max):
-            if tree is None:
-                res = self.submit_form(url,
+            if i == 0:
+                self.browser.submit_form(url,
                         fields={'allwords': query, 'sort': SORT_DEF[sort]})
-                data = self.browser.get_unicode_data(response=res)
             else:
-                links = tree.cssselect('div#pager a')
+                links = self.browser.cssselect('div#pager a')
                 if not links or not self.check_next_link(links[-1]):
-                    return
+                    break
                 url = urljoin(self.url, links[-1].get('href'))
-                data = self.browser.get_unicode_data(url=url)
+                self.browser.open(url)
 
-            if not data:
+            divs = self.browser.cssselect('div#newresult')
+            if divs is None:
                 raise SearchError('no data')
 
-            tree = html.fromstring(data)
-            for div in tree.cssselect('div#newresult'):
+            for div in divs:
                 links = div.cssselect('a')
                 if not links:
                     continue
@@ -100,23 +96,22 @@ class Filestube(Base):
 
     def _get_download_url(self, url):
         netloc_parts = urlparse(url).netloc.split('.')
-        if 'mediafire' in netloc_parts:
-            data = self.browser.get_unicode_data(url=url)
-            if not data:
-                return
+        browser = Browser()
 
-            tree = html.fromstring(data)
-            if tree.cssselect('#form_captcha'):
+        if 'mediafire' in netloc_parts:
+            browser.open(url)
+            if browser.cssselect('#form_captcha'):
                 logger.error('failed to get url from %s: captcha' % url)
                 return
 
-            tags = tree.cssselect('.download_link')
+            tags = browser.cssselect('.download_link')
             if tags:
                 data_ = html.tostring(tags[0])
                 res = re.compile(r'"(http://.*?)"').findall(data_)
                 if res:
                     return res[0]
-            logger.error('failed to get url from %s' % url)
+
+        logger.error('failed to get download url from %s' % url)
 
     def get_download_urls(self, urls):
         res = []

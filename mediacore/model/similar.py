@@ -1,5 +1,5 @@
-from mediacore.model import Base
+from mediacore.utils.db import Model
 
 
-class Similar(Base):
+class Similar(Model):
     COL = 'similar'

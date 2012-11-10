@@ -5,8 +5,9 @@ import logging
 
 from lxml import html
 
+from filetools.title import clean
+
 from mediacore.web import Base
-from mediacore.util.title import clean
 
 
 logger = logging.getLogger(__name__)
@@ -25,35 +26,28 @@ class Vcdquality(Base):
                 text_regex=re.compile(r'^%s$' % page),
                 url_regex=re.compile(r'browse'))
 
-    def _pages(self, pages_max=1):
+    def results(self, pages_max=1):
+        self.browser.clear_history()
+
         for page in range(1, pages_max + 1):
             if page > 1:
-                res = self._next(page)
+                if not self._next(page):
+                    break
             else:
-                self.browser.clear_history()
-                res = self.browser.open(self._get_releases_url())
+                self.browser.open(self._get_releases_url())
 
-            if res:
-                data = res.get_data()
-                if data:
-                    yield page, data
-
-    def results(self, pages_max=1):
-        for page, data in self._pages(pages_max):
-            tree = html.fromstring(data)
-
-            tbodys = tree.cssselect('#searchResult tbody')
+            tbodys = self.browser.cssselect('#searchResult tbody')
             if not tbodys:
-                logger.error('failed to get results')
+                logger.error('failed to get results from %s' % self.browser.geturl())
                 continue
 
             for tr in tbodys[-1].cssselect('tr'):
                 log = html.tostring(tr, pretty_print=True)[:1000]
 
-                tags = tr.cssselect('.titleField a')
-                if not tags:
+                links = tr.cssselect('.titleField a')
+                if not links:
                     continue
-                result = {'release': tags[0].text}
+                result = {'release': links[0].text}
 
                 dates = tr.cssselect('.dateField')
                 if not dates:

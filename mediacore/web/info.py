@@ -4,9 +4,10 @@ from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
 from mediacore.web.youtube import Youtube
 
-from mediacore.util.title import Title
-from mediacore.util.filter import validate_info
-from mediacore.util.util import randomize
+from filetools.title import Title
+
+from mediacore.utils.filter import validate_info
+from mediacore.utils.utils import randomize
 
 
 class InfoException(Exception): pass
@@ -46,6 +47,8 @@ def similar_movies(query, type='title', year=None, randomized=True,
     '''
     imdb = Imdb()
     similar_movies = imdb.get_similar(query, type=type, year=year)
+    if not similar_movies:
+        return
     if randomized:
         similar_movies = randomize(similar_movies)
 
@@ -60,6 +63,8 @@ def similar_tv(query, years_delta=None, randomized=True, filters=None):
     '''
     tvrage = Tvrage()
     similar_tv = tvrage.get_similar(query, years_delta=years_delta)
+    if not similar_tv:
+        return
     if randomized:
         similar_tv = randomize(similar_tv)
 
@@ -108,25 +113,24 @@ def search_extra(obj):
     '''Get an object extra info.
     '''
     extra = {}
-
     info = obj.get('info', {})
     category = info.get('subtype') or obj.get('category')
 
     if category in ('movies', 'tv', 'anime'):
-
         if category in ('tv', 'anime'):
             name = info.get('name') or obj.get('name')
             extra['tvrage'] = Tvrage().get_info(name) or {}
         else:
             name = info.get('full_name') or obj.get('name')
 
-        # Get date
+        date = None
         if obj.get('release'):
             date = Title(obj['release']).date
-        elif obj.get('date'):
-            date = obj['date'].year
-        else:
-            date = info.get('date')
+        if not date:
+            if info.get('date'):
+                date = info['date']
+            elif obj.get('date'):
+                date = obj['date'].year
 
         extra['imdb'] = Imdb().get_info(name, year=date) or {}
 

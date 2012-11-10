@@ -2,7 +2,7 @@ import logging
 
 import gdata.youtube.service
 
-from mediacore.util.title import Title, clean
+from filetools.title import Title, clean
 
 
 logger = logging.getLogger(__name__)

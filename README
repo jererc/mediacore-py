@@ -1,4 +1,4 @@
-The media project core library.
+The media core library.
 
 
 Description:
@@ -6,11 +6,8 @@ Description:
 - model:
     database methods
 
-- util:
-    various tools including titles parsing and search
-
 - web:
     websites libraries
 
-- web.torrent:
-    torrent search and torrent websites libraries
+- web.search:
+    media search libraries

@@ -1,12 +1,14 @@
 import re
 from urlparse import urljoin
+from urllib2 import urlopen, URLError
 import logging
 
-from lxml import html
+from transfer.http import download as download_file
+
+from filetools.title import Title, clean
+from filetools.media import is_html, remove_file
 
 from mediacore.web import Base
-from mediacore.util.title import Title, clean
-from mediacore.util.media import is_html
 
 
 DEFAULT_LANG = 'eng'
@@ -16,6 +18,7 @@ RE_MAXIMUM_DOWNLOAD = re.compile(r'\bmaximum\s+download\s+count\b', re.I)
 RE_ERROR = re.compile(r'\bcritical\s+error\b', re.I)
 RE_NO_RESULT = re.compile(r'<b>No\s+results</b>\s+found', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
+RE_BAD_CONTENT_TYPE = re.compile(r'\btext/html\b', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -35,72 +38,70 @@ class Opensubtitles(Base):
             self.logged = False
 
     def _login(self, username, password):
-        res = self.submit_form(self.url, name='loginform', fields={
-                'user': username,
-                'password': password,
-                })
-        if not res:
+        fields = {'user': username, 'password': password}
+        if not self.browser.submit_form(self.url,
+                name='loginform', fields=fields):
             logger.error('failed to login')
         elif 'loginform' in [f.name for f in self.browser.forms()]:
-            logger.error('failed to login as %s', username)
+            logger.error('failed to login as %s' % username)
         else:
             return True
 
     def _get_subtitles(self, url):
         info = []
-
         if self.browser.open(url):
             for link in self.browser.links(url_regex=RE_URL_FILE):
-                res = RE_FILE.search(link.text.decode('utf-8', 'replace'))
+                res = RE_FILE.findall(clean(link.text))
                 if res:
                     info.append({
-                        'filename': res.group(1),
+                        'filename': res[0],
                         'url': link.absolute_url,
                         })
 
         if not info:
-            if not RE_NO_RESULT.search(self.browser.response().get_data()):
-                logger.error('failed to find subtitles files at %s', url)
+            data = self.browser.response().get_data()
+            if data and not RE_NO_RESULT.search(data):
+                logger.error('failed to find subtitles files at %s' % url)
 
         return info
 
     def _get_date(self, title):
-        res = RE_DATE.search(title)
+        res = RE_DATE.findall(title)
         if res:
-            return int(res.group(1))
+            return int(res[0])
 
     def _subtitles_urls(self, re_name, date=None, url=None):
-        if not url:
-            url = self.browser.geturl()
-            res = self.browser.response()
-        else:
-            res = self.browser.open(url)
+        if url and not self.browser.open(url):
+            return
 
-        data = res.get_data() if res else None
-        if not data:
-            raise OpensubtitlesError('no data')
-
-        tree = html.fromstring(data)
-        trs = tree.cssselect('#search_results tr[id]')
+        trs = self.browser.cssselect('#search_results tr[id]')
         if not trs:
-            if not tree.cssselect('#search_results'):    # skip tvshow whole season page
+            if not self.browser.cssselect('#search_results'):    # skip tvshow whole season page
                 yield self.browser.geturl()
-        else:
-            for tr in trs:
-                links = tr.cssselect('a')
-                if links:
-                    title = clean(links[0].text)
-                    if not re_name.search(title):
-                        continue
-                    date_ = self._get_date(title)
-                    if date and date_ and abs(date - date_) > 1:
-                        continue
+            return
 
-                    url = urljoin(self.url, links[0].get('href'))
-                    for res in self._subtitles_urls(re_name=re_name, date=date, url=url):
-                        yield res
+        for tr in trs:
+            links = tr.cssselect('a')
+            if not links:
+                continue
+            title = clean(links[0].text)
+            if not re_name.search(title):
+                continue
+            date_ = self._get_date(title)
+            if date and date_ and abs(date - date_) > 1:
+                continue
 
-    def results(self, name, season=None, episode=None, date=None, lang=DEFAULT_LANG):
+            url = urljoin(self.url, links[0].get('href'))
+            for res in self._subtitles_urls(re_name=re_name,
+                    date=date, url=url):
+                yield res
+
+    def results(self, name, season=None, episode=None, date=None,
+            lang=DEFAULT_LANG):
+        if not self.logged:
+            return
+        self.browser.clear_history()
+
         fields = {
             'MovieName': name,
             'SubLanguageID': [lang],
@@ -109,12 +110,13 @@ class Opensubtitles(Base):
             fields['Season'] = str(season)
         if episode:
             fields['Episode'] = str(episode)
-        if not self.submit_form(name='searchform', fields=fields):
+        if not self.browser.submit_form(self.url,
+                name='searchform', fields=fields):
             return
 
         if season and episode:
             re_name = Title(name).get_search_re(mode='__all__')
-            re_sub = re.compile(r'[^1-9]%s\D*%s\D' % (season, episode), re.I)
+            re_sub = re.compile(r'[^1-9]%s\D*%s\D' % (season, str(episode).zfill(2)))
         else:
             re_name = Title(name).get_search_re()
             re_sub = None
@@ -125,24 +127,34 @@ class Opensubtitles(Base):
                     continue
                 yield result
 
-    def save(self, url, dst):
-        '''Save the file to the destination and check the content.
-        '''
-        if not self.logged:
-            logger.error('failed to download %s: login required', url)
+    def _check_url(self, url):
+        try:
+            remote = urlopen(url)
+        except URLError:
             return
+        if remote:
+            content_type = remote.info().get('content-type')
+            if content_type and not RE_BAD_CONTENT_TYPE.search(content_type):
+                return True
 
-        res = self.browser.open(url)
-        if res:
-            data = res.get_data()
-            if not data or is_html(data):
-                if RE_MAXIMUM_DOWNLOAD.search(data):
-                    raise DownloadQuotaReached('failed to download %s: maximum download quota reached' % url)
-                elif RE_ERROR.search(data):
-                    raise OpensubtitlesError('failed to download %s: opensubtitles error' % url)
-                logger.error('downloaded invalid subtitles from %s: %s[...])', url, repr(data[:100]))
-                return
+    def _check_file(self, file):
+        with open(file) as fd:
+            data = fd.read()
 
-            with open(dst, 'wb') as fd:
-                fd.write(data)
-            return True
+        if not data or is_html(data):
+            remove_file(file)
+            if RE_MAXIMUM_DOWNLOAD.search(data):
+                raise DownloadQuotaReached('maximum download quota reached')
+            return
+        return True
+
+    def download(self, url, dst, temp_dir):
+        if not self._check_url(url):
+            return
+        res = download_file(url, dst, temp_dir)
+        if not res:
+            return
+        if not self._check_file(res[0]):
+            logger.error('invalid subtitles at %s' % url)
+            return
+        return res

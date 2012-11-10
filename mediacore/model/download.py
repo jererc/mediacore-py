@@ -1,5 +1,5 @@
-from mediacore.model import Base
+from mediacore.utils.db import Model
 
 
-class Download(Base):
+class Download(Model):
     COL = 'downloads'

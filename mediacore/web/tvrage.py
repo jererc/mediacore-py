@@ -5,8 +5,9 @@ import logging
 
 from lxml import html
 
+from filetools.title import Title, clean, is_url
+
 from mediacore.web import Base
-from mediacore.util.title import Title, clean, is_url
 
 
 URL_SCHEDULE = 'http://www.tvrage.com/schedule.php'
@@ -30,34 +31,26 @@ def get_year(val):
 class Tvrage(Base):
     URL = 'http://www.tvrage.com'
 
-    def _get_data(self, query):
+    def _process(self, query):
         self.browser.clear_history()
-        if is_url(query):
-            res = self.browser.open(query)
-            if res:
-                return res.get_data()
-        else:
-            res = self.submit_form(self.url, fields={'search': query})
-            if not res:
-                return
 
+        if is_url(query):
+            return self.browser.open(query)
+
+        if self.browser.submit_form(self.url, fields={'search': query}):
             re_q = Title(query).get_search_re()
             for link in self.browser.links(url_regex=RE_URL_MAIN):
                 if re_q.search(clean(link.text)):
-                    res = self.browser.open(link.absolute_url)
-                    if res:
-                        return res.get_data()
+                    return self.browser.open(link.absolute_url)
 
     def get_info(self, query):
-        data = self._get_data(query)
-        if not data:
+        if not self._process(query):
             return
 
         info = {'url': self.browser.geturl()}
-        tree = html.fromstring(data)
 
         # Episode info
-        for h2 in tree.cssselect('div.grid_7_5 h2'):
+        for h2 in self.browser.cssselect('div.grid_7_5 h2', []):
             title = h2.text.lower().split(':')[0]
             if title in ('next', 'prev'):
                 res = RE_EPISODE_INFO.search(html.tostring(h2))
@@ -65,7 +58,7 @@ class Tvrage(Base):
                     key = 'next_episode' if title == 'next' else 'latest_episode'
                     info[key] = clean('%s (%s)' % res.groups()).lower()
 
-        for div in tree.cssselect('div.grid_4'):
+        for div in self.browser.cssselect('div.grid_4', []):
             if not div.cssselect('.content_title a'):
                 continue
 
@@ -100,9 +93,7 @@ class Tvrage(Base):
         return info
 
     def _get_current_shows_url(self, url):
-        res = self.browser.open(url)
-        if not res:
-            return
+        self._process(url)
         for link in self.browser.links(text_regex=RE_CURRENT_SHOWS):
             return link.absolute_url
 
@@ -110,20 +101,15 @@ class Tvrage(Base):
         info = self.get_info(query)
         if not info:
             return
-
         url = info.get('url_network')
         if not url:
             return
         url = self._get_current_shows_url(url)
         if not url:
             return
-        data = self._get_data(url)
-        if not data:
-            return
-
+        self._process(url)
         res = []
-        tree = html.fromstring(data)
-        for tr in tree.cssselect('table.b tr#brow'):
+        for tr in self.browser.cssselect('table.b tr#brow', []):
             log = html.tostring(tr, pretty_print=True)[:1000]
 
             try:
@@ -156,12 +142,8 @@ class Tvrage(Base):
         return res
 
     def scheduled_shows(self):
-        data = self._get_data(URL_SCHEDULE)
-        if not data:
-            return
-
-        tree = html.fromstring(data)
-        for tr in tree.cssselect('table tr[id="brow"]'):
+        self._process(URL_SCHEDULE)
+        for tr in self.browser.cssselect('table tr[id="brow"]', []):
             log = html.tostring(tr, pretty_print=True)[:1000]
             info = {}
 

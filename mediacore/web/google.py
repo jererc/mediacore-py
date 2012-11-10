@@ -3,8 +3,9 @@ import logging
 
 from lxml import html
 
+from filetools.title import clean
+
 from mediacore.web import Base
-from mediacore.util.title import clean
 
 
 RE_NB_RESULTS = re.compile(r'(\d+)')
@@ -18,38 +19,29 @@ class Google(Base):
 
     def _next(self, page):
         return self.browser.follow_link(
-            text_regex=re.compile(r'^\D*%s\D*$' % page),
-            url_regex=RE_URL_SEARCH)
-
-    def _pages(self, query, pages_max=1):
-        for page in range(1, pages_max + 1):
-            if page > 1:
-                res = self._next(page)
-            else:
-                self.browser.clear_history()
-                res = self.submit_form(self.url, fields={'q': query})
-
-            if res:
-                data = res.get_data()
-                if not data:
-                    return
-                yield page, data
+                text_regex=re.compile(r'^\D*%s\D*$' % page),
+                url_regex=RE_URL_SEARCH)
 
     def results(self, query, pages_max=1):
-        for page, data in self._pages(query, pages_max):
-            tree = html.fromstring(data)
-            for div in tree.cssselect('div.vsc'):
+        self.browser.clear_history()
+
+        for page in range(1, pages_max + 1):
+            if page > 1:
+                if not self._next(page):
+                    break
+            else:
+                self.browser.submit_form(self.url, fields={'q': query})
+
+            for div in self.browser.cssselect('div.vsc', []):
                 log = html.tostring(div, pretty_print=True)[:1000]
 
                 links = div.cssselect('a')
                 if not links:
                     logger.error('failed to get links from %s', log)
                     continue
-
                 title = self.get_link_text(html.tostring(links[0]))
                 if not title:
                     continue
-
                 result = {
                     'title': clean(title),
                     'url': links[0].get('href'),
@@ -60,15 +52,12 @@ class Google(Base):
     def get_nb_results(self, query):
         '''Get the results count for a query.
         '''
-        res = list(self._pages(query, 1))
-        if not res:
-            return
-
-        tree = html.fromstring(res[0][1])
-        div = tree.get_element_by_id('resultStats')
-        res = RE_NB_RESULTS.search(clean(div.text))
-        if res:
-            return int(res.group(1))
+        self.browser.submit_form(self.url, fields={'q': query})
+        stat = self.browser.cssselect('#resultStats')
+        if stat:
+            res = RE_NB_RESULTS.findall(clean(stat[0].text))
+            if res:
+                return int(res[0])
 
     def get_most_popular(self, queries):
         '''Get the most popular query from a list of queries.
