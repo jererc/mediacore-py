@@ -19,7 +19,12 @@ class Youtube(object):
         yt_query.vq = clean(query)
         yt_query.orderby = 'relevance'
         yt_query.racy = 'include'
-        feed = self.yt_service.YouTubeQuery(yt_query)
+        try:
+            feed = self.yt_service.YouTubeQuery(yt_query)
+        except Exception, e:
+            logger.error('failed to process query "%s": %s' % (query, str(e)))
+            return
+
         for entry in feed.entry:
             res = {}
             res['title'] = entry.media.title.text
@@ -37,10 +42,7 @@ class Youtube(object):
         title = clean(title)
         re_title = Title(title).get_search_re(mode='__all__')
 
-        queries = [
-            '%s trailer' % title,
-            title,
-            ]
+        queries = ['%s trailer' % title, title]
         if date:
             queries.insert(0, '%s %s trailer' % (title, date))
 

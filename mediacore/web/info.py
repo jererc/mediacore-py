@@ -82,7 +82,7 @@ def similar_music(band, randomized=True, filters=None):
     for obj in objects:
         res = obj.get_similar(band)
         if res:
-            similar_bands.extend(res)
+            similar_bands.extend([r['title'] for r in res])
 
     similar_bands = list(set(similar_bands))
     if randomized:

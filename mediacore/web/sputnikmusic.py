@@ -55,12 +55,6 @@ class Sputnikmusic(Base):
         except Exception:
             logger.error('failed to get band genre from %s' % url)
 
-        # Get similar bands
-        for tag in self.browser.cssselect('p.alt2', []):
-            if clean(tag[0][0].text, 1) == 'similar bands':
-                info['similar_bands'] = [clean(t.text, 1) for t in tag[1:]]  # skip the caption
-                break
-
         for table in self.browser.cssselect('table.plaincontentbox', []):
             # Get albums
             albums = []
@@ -126,9 +120,18 @@ class Sputnikmusic(Base):
     def get_similar(self, artist):
         '''Get similar artists.
         '''
-        info = self.get_info(artist)
-        if info:
-            return info.get('similar_bands', [])
+        res = []
+        url = self._get_band_url(artist)
+        if url:
+            for tag in self.browser.cssselect('p.alt2', []):
+                if clean(tag[0][0].text, 1) == 'similar bands':
+                    for tag_ in tag[1:]:
+                        res.append({
+                            'title': clean(tag_.text, 1),
+                            'url': urljoin(self.url, tag_.get('href'))
+                            })
+                    break
+        return res
 
     def reviews(self):
         for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):

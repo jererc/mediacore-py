@@ -97,13 +97,15 @@ class Subscene(Base):
 
     def _get_subscene_id(self, url):
         browser = RealBrowser()
-        browser.open(url)
-        elements = browser.find_elements_by_css_selector('form #mac')
-        if elements:
-            return elements[0].get_attribute('value')
+        if browser.open(url):
+            elements = browser.find_elements_by_css_selector('form #mac')
+            if elements:
+                return elements[0].get_attribute('value')
 
     def _download(self, url, dst):
         mac = self._get_subscene_id(url)
+        if not mac:
+            return
         data = {'mac': mac}
         response = requests.post(URL_POST, data=data)
         res = RE_FILENAME.findall(response.headers.get('content-disposition', ''))

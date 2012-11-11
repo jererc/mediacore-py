@@ -17,16 +17,16 @@ logging.getLogger('pyscreenshot').setLevel(logging.ERROR)
 logging.getLogger('easyprocess').setLevel(logging.ERROR)
 from pyvirtualdisplay.smartdisplay import SmartDisplay
 
+from systools.system import timeout, TimeoutError
+
 from filetools.title import clean
 
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
-TIMEOUT = 300
-URL_TIMEOUT = 20
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
 RE_ENCODING = re.compile(r'.*charset=([^\s]+)', re.I)
+TIMEOUT_REQUEST = 20
 
-socket.setdefaulttimeout(TIMEOUT)
 logger = logging.getLogger(__name__)
 
 
@@ -43,20 +43,25 @@ class Browser(mechanize.Browser):
         self.set_handle_refresh(False)
         if debug_http:
             self.set_debug_http(True)
-
         self.tree = None
 
-    # TODO: check we do not reopen the current url
+    @timeout(TIMEOUT_REQUEST)
+    def _mech_open_wrapper(self, *args, **kwargs):
+        return mechanize.Browser._mech_open(self, *args, **kwargs)
+
     def _mech_open(self, *args, **kwargs):
-        kwargs['timeout'] = URL_TIMEOUT
+        kwargs['timeout'] = TIMEOUT_REQUEST
         try:
-            res = mechanize.Browser._mech_open(self, *args, **kwargs)
+            res = self._mech_open_wrapper(*args, **kwargs)
             self.tree = self._get_tree(res)
             return res
         except (IncompleteRead, BadStatusLine, URLError,
                 socket.gaierror, socket.error, socket.timeout,
-                mechanize.BrowserStateError), e:
-            logger.error('request failed for %s, %s: %s' % (args, kwargs, str(e)))
+                mechanize.BrowserStateError, TimeoutError), e:
+            url = kwargs.get('url', args[0])
+            if hasattr(url, 'get_full_url'):
+                url = url.get_full_url()
+            logger.error('failed to open %s: %s' % (url, str(e)))
         except Exception:
             logger.exception('exception')
         self.tree = None
@@ -73,9 +78,10 @@ class Browser(mechanize.Browser):
         res = RE_ENCODING.findall(content_type)
         if res:
             try:
-                data = data.decode(res[0])
+                data = data.decode(res[0], 'replace')
             except Exception, e:
-                logger.error('failed to decode "%s" at %s: %s' % (res[0], response.geturl(), str(e)))
+                logger.error('failed to decode "%s" at %s: %s' % (res[0],
+                        response.geturl(), str(e)))
 
         return html.fromstring(data)
 
@@ -135,9 +141,16 @@ class RealBrowser(webdriver.Firefox):
         self.quit()
         self._abstract_display.stop()
 
-    def open(self, url):
-        # TODO: handle timeout
+    @timeout(TIMEOUT_REQUEST)
+    def _open(self, url):
         self.get(url)
+
+    def open(self, url):
+        try:
+            self._open(url)
+            return True
+        except Exception, e:
+            logger.error('failed to open %s: %s' % (url, str(e)))
 
 
 class Base(object):

@@ -158,8 +158,17 @@ class Lastfm(Base):
                 url = urljoin(self.url, links[-1].get('href'))
 
             self.browser.open(url)
-            for tag in self.browser.cssselect('.link-reference h3', []):
-                yield clean(tag.text, 1)
+            for li in self.browser.cssselect('.similar-artist', []):
+                links = li.cssselect('a')
+                if not links:
+                    continue
+                titles = li.cssselect('.link-reference h3')
+                if not titles:
+                    continue
+                yield {
+                    'title': clean(titles[0].text, 1),
+                    'url': urljoin(self.url, links[0].get('href')),
+                    }
 
     def get_similar(self, query, pages_max=MAX_SIMILAR_PAGES):
         '''Get similar artists.

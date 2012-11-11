@@ -49,6 +49,8 @@ def validate_info(info, filters):
 
 def validate_extra(extra, filters):
     '''Validate an object extra info.
+
+    :return: bool or None if not processed
     '''
     if not extra:
         return None
