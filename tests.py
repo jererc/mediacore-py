@@ -5,11 +5,10 @@ import tempfile
 from datetime import timedelta
 import unittest
 from contextlib import contextmanager, nested
+import json
 import logging
 
 from mock import patch, Mock
-
-import settings
 
 from mediacore.utils.utils import parse_magnet_url
 
@@ -48,14 +47,27 @@ BAND2 = 'radiohead'
 OPENSUBTITLES_LANG = 'eng'
 SUBSCENE_LANG = 'english'
 
-
 logging.basicConfig(level=logging.DEBUG)
+
+conf = {
+    'opensubtitles_username': '',
+    'opensubtitles_password': '',
+    'temp_dir': '/tmp',
+    }
+try:
+    conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+            'tests_config.json')
+    with open(conf_file) as fd:
+        conf.update(json.load(fd))
+except Exception, e:
+    logging.debug('failed to load tests config: %s' % str(e))
+
 is_connected = Google().accessible
 
 
 @contextmanager
-def mkdtemp(dir='/tmp'):
-    temp_dir = tempfile.mkdtemp(prefix='mediacore_tests', dir=dir)
+def mkdtemp(dir=conf['temp_dir']):
+    temp_dir = tempfile.mkdtemp(prefix='tests_', dir=dir)
     try:
         yield temp_dir
     finally:
@@ -386,7 +398,8 @@ class OpensubtitlesTest(unittest.TestCase):
 
     def setUp(self):
         self.max_results = 4
-        self.obj = Opensubtitles(settings.OPENSUBTITLES_USERNAME, settings.OPENSUBTITLES_PASSWORD)
+        self.obj = Opensubtitles(conf['opensubtitles_username'],
+                conf['opensubtitles_password'])
 
     def test_logged(self):
         self.assertTrue(self.obj.logged)
@@ -416,7 +429,8 @@ class OpensubtitlesTest(unittest.TestCase):
 
         self.assertTrue(count > 1, 'failed to find enough subtitles for "%s" season %s episode %s' % (TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE))
 
-    @unittest.skipIf(not settings.OPENSUBTITLES_USERNAME or not settings.OPENSUBTITLES_PASSWORD, 'missing opensubtitles credentials')
+    @unittest.skipIf(not conf['opensubtitles_username'] or not conf['opensubtitles_password'],
+            'missing opensubtitles credentials')
     def test_download(self):
         result = False
         for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
@@ -656,4 +670,4 @@ class FilestubeTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(catchbreak=True, verbosity=2)
+    unittest.main()
