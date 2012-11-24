@@ -110,10 +110,13 @@ class Torrentz(Base):
                     break
             else:
                 if is_url(query):
-                    self.browser.open(query)
+                    if not self.browser.open(query):
+                        raise SearchError('no data')
                 else:
-                    res = self.browser.submit_form(self.url, index=0, fields={'f': query})
-                    if res and sort != 'popularity':     # default sort is peers ('popularity')
+                    if not self.browser.submit_form(self.url,
+                            index=0, fields={'f': query}):
+                        raise SearchError('no data')
+                    if sort != 'popularity':     # default sort is peers ('popularity')
                         self._sort(sort)
 
             divs = self.browser.cssselect('div.results')

@@ -41,11 +41,11 @@ class Opensubtitles(Base):
         fields = {'user': username, 'password': password}
         if not self.browser.submit_form(self.url,
                 name='loginform', fields=fields):
-            logger.error('failed to login')
-        elif 'loginform' in [f.name for f in self.browser.forms()]:
+            return False
+        if 'loginform' in [f.name for f in self.browser.forms()]:
             logger.error('failed to login as %s' % username)
-        else:
-            return True
+            return False
+        return True
 
     def _get_subtitles(self, url):
         info = []
@@ -130,12 +130,15 @@ class Opensubtitles(Base):
     def _check_url(self, url):
         try:
             remote = urlopen(url)
-        except URLError:
+        except URLError, e:
+            logger.error('failed to open url %s: %s' % (url, str(e)))
             return
-        if remote:
-            content_type = remote.info().get('content-type')
-            if content_type and not RE_BAD_CONTENT_TYPE.search(content_type):
-                return True
+        if not remote:
+            logger.error('failed to get headers for url %s' % url)
+            return
+        content_type = remote.info().get('content-type')
+        if content_type and not RE_BAD_CONTENT_TYPE.search(content_type):
+            return True
 
     def _check_file(self, file):
         with open(file) as fd:

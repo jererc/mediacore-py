@@ -34,11 +34,12 @@ class Vcdquality(Base):
                 if not self._next(page):
                     break
             else:
-                self.browser.open(self._get_releases_url())
+                if not self.browser.open(self._get_releases_url()):
+                    return
 
             tbodys = self.browser.cssselect('#searchResult tbody')
             if not tbodys:
-                logger.error('failed to get results from %s' % self.browser.geturl())
+                logger.error('failed to get results')
                 continue
 
             for tr in tbodys[-1].cssselect('tr'):

@@ -170,6 +170,5 @@ def results(query, **kwargs):
             for result in obj.results(query_, **kwargs):
                 result.plugin = plugin
                 yield result
-        except SearchError, e:
-            logger.error('error with %s: %s', plugin, str(e))
+        except SearchError:
             yield None

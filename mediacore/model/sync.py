@@ -7,10 +7,9 @@ class Sync(Model):
     COL = 'syncs'
 
     @classmethod
-    def add(cls, username, password, media_id, dst, parameters=None):
+    def add(cls, user, dst, media_id=None, parameters=None):
         doc = {
-            'username': username,
-            'password': password,
+            'user': user,
             'dst': dst,
             'parameters': parameters or {},
             }

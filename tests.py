@@ -430,7 +430,7 @@ class OpensubtitlesTest(unittest.TestCase):
         self.assertTrue(count > 1, 'failed to find enough subtitles for "%s" season %s episode %s' % (TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE))
 
     @unittest.skipIf(not conf['opensubtitles_username'] or not conf['opensubtitles_password'],
-            'missing opensubtitles credentials')
+            'missing opensubtitles username or password')
     def test_download(self):
         result = False
         for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
@@ -483,13 +483,10 @@ class SubsceneTest(unittest.TestCase):
         result = False
         for res in self.obj.results(MOVIE, lang=SUBSCENE_LANG):
             with mkdtemp() as temp_dir:
-                try:
-                    downloaded = self.obj.download(res['url'],
-                            os.path.join(temp_dir, res['filename']), temp_dir)
-                    self.assertTrue(downloaded, 'failed to download subtitles "%s" (%s)' % (res['filename'], res['url']))
-                    result = True
-                except DownloadQuotaReached:
-                    pass
+                downloaded = self.obj.download(res['url'],
+                        os.path.join(temp_dir, res['filename']), temp_dir)
+                self.assertTrue(downloaded, 'failed to download subtitles "%s" (%s)' % (res['filename'], res['url']))
+                result = True
             break
 
         self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)

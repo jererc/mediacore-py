@@ -79,16 +79,17 @@ class Thepiratebay(Base):
                     break
             else:
                 if is_url(query):
-                    res = self.browser.open(query)
+                    if not self.browser.open(query):
+                        raise SearchError('no data')
                 else:
                     fields = {'q': query}
                     if category:
                         val = CAT_DEF.get(category.lower())
                         if val:
                             fields[val] = ['on']
-                    res = self.browser.submit_form(self.url, fields=fields)
-                    if res:
-                        self._sort(sort)
+                    if not self.browser.submit_form(self.url, fields=fields):
+                        raise SearchError('no data')
+                    self._sort(sort)
 
             trs = self.browser.cssselect('#searchResult tr:not([class="header"])')
             if not trs:

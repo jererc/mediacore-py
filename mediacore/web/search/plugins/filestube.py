@@ -34,7 +34,7 @@ class Filestube(Base):
         browser = Browser()
         browser.open(url)
         tags = browser.cssselect('#copy_paste_links')
-        if not tags:
+        if not tags or not tags[0].text:
             return
         urls = tags[0].text.splitlines()
         if not self._get_site(urls[0]):
@@ -64,14 +64,16 @@ class Filestube(Base):
 
         for i in range(pages_max):
             if i == 0:
-                self.browser.submit_form(url,
-                        fields={'allwords': query, 'sort': SORT_DEF[sort]})
+                if not self.browser.submit_form(url,
+                        fields={'allwords': query, 'sort': SORT_DEF[sort]}):
+                    raise SearchError('no data')
             else:
                 links = self.browser.cssselect('div#pager a')
                 if not links or not self.check_next_link(links[-1]):
                     break
                 url = urljoin(self.url, links[-1].get('href'))
-                self.browser.open(url)
+                if not self.browser.open(url):
+                    raise SearchError('no data')
 
             divs = self.browser.cssselect('div#newresult')
             if divs is None:

@@ -162,11 +162,7 @@ class Base(object):
         self.browser = Browser(robust_factory=self.ROBUST_FACTORY,
                 debug_http=debug_http)
         self.url = self._get_url()
-        if self.url:
-            self.accessible = True
-        else:
-            self.accessible = False
-            logger.error('failed to connect to %s' % self.URL)
+        self.accessible = True if self.url else False
 
     def _get_url(self):
         if not isinstance(self.URL, (tuple, list)):

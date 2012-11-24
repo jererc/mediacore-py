@@ -158,7 +158,7 @@ class Lastfm(Base):
                 url = urljoin(self.url, links[-1].get('href'))
 
             self.browser.open(url)
-            for li in self.browser.cssselect('.similar-artist', []):
+            for li in self.browser.cssselect('.similar-artists li', []):
                 links = li.cssselect('a')
                 if not links:
                     continue
