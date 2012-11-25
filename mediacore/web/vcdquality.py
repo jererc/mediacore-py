@@ -27,8 +27,6 @@ class Vcdquality(Base):
                 url_regex=re.compile(r'browse'))
 
     def results(self, pages_max=1):
-        self.browser.clear_history()
-
         for page in range(1, pages_max + 1):
             if page > 1:
                 if not self._next(page):

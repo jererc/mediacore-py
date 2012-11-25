@@ -102,7 +102,8 @@ class Torrentz(Base):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
     def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
-        self.browser.clear_history()
+        if not self.url:
+            raise SearchError('no data')
 
         for page in range(1, pages_max + 1):
             if page > 1:

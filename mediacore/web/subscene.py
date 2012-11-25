@@ -80,8 +80,6 @@ class Subscene(Base):
 
     def results(self, name, season=None, episode=None, date=None,
             lang=DEFAULT_LANG):
-        self.browser.clear_history()
-
         if not self.browser.submit_form(self.url, fields={'q': name}):
             return
 

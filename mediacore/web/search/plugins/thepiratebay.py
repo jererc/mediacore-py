@@ -33,9 +33,10 @@ logger = logging.getLogger(__name__)
 
 class Thepiratebay(Base):
     URL = [
-        'https://piratereverse.info',
         'https://tpb.pirateparty.org.uk',
-        'http://unblockedpiratebay.com',
+        'http://livepirate.com',
+        'http://pirateproxy.net',
+        'https://piratereverse.info',
         ]
 
     def _get_date(self, val):
@@ -71,7 +72,8 @@ class Thepiratebay(Base):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
     def results(self, query, category=None, sort='date', pages_max=1, **kwargs):
-        self.browser.clear_history()
+        if not self.url:
+            raise SearchError('no data')
 
         for page in range(1, pages_max + 1):
             if page > 1:

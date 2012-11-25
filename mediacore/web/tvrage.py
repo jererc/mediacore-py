@@ -32,8 +32,6 @@ class Tvrage(Base):
     URL = 'http://www.tvrage.com'
 
     def _process(self, query):
-        self.browser.clear_history()
-
         if is_url(query):
             return self.browser.open(query)
 

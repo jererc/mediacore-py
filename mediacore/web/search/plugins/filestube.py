@@ -55,7 +55,8 @@ class Filestube(Base):
             }
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
-        self.browser.clear_history()
+        if not self.url:
+            raise SearchError('no data')
 
         links = list(self.browser.links(text_regex=RE_ADVANCED_SEARCH))
         if not links:

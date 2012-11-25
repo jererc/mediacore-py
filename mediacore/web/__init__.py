@@ -4,6 +4,7 @@ from urlparse import urlparse
 from httplib import IncompleteRead, BadStatusLine
 from urllib2 import URLError
 import logging
+import gzip
 
 import mechanize
 
@@ -30,11 +31,15 @@ TIMEOUT_REQUEST = 20
 logger = logging.getLogger(__name__)
 
 
+class NoHistory(object):
+    def add(self, *args, **kwargs): pass
+    def clear(self): pass
+
 class Browser(mechanize.Browser):
 
     def __init__(self, user_agent=USER_AGENT, robust_factory=False,
                 debug_http=False):
-        args = {}
+        args = {'history': NoHistory()}
         if robust_factory:
             args['factory'] = mechanize.RobustFactory()
         mechanize.Browser.__init__(self, **args)    # mechanize.Browser is an old style class
@@ -45,6 +50,35 @@ class Browser(mechanize.Browser):
             self.set_debug_http(True)
         self.tree = None
 
+    def _handle_response(self, response):
+        if response.info().getheader('content-encoding') == 'gzip':
+            gz = gzip.GzipFile(fileobj=response, mode='rb')
+            try:
+                data = gz.read()
+                response.set_data(data)
+                self.set_response(response)
+            except IOError:
+                pass
+            finally:
+                gz.close()
+
+        return response
+
+    def _get_tree(self, response):
+        data = response.get_data()
+        content_type = response.info().getheader('content-type')
+        res = RE_ENCODING.findall(content_type)
+        if res:
+            try:
+                data = data.decode(res[0], 'replace')
+            except Exception, e:
+                logger.error('failed to decode "%s" at %s: %s' % (res[0],
+                        response.geturl(), str(e)))
+        try:
+            return html.fromstring(data)
+        except Exception, e:
+            logger.error('failed to parse "%s": %s' % (data, str(e)))
+
     @timeout(TIMEOUT_REQUEST)
     def _mech_open_wrapper(self, *args, **kwargs):
         return mechanize.Browser._mech_open(self, *args, **kwargs)
@@ -53,6 +87,7 @@ class Browser(mechanize.Browser):
         kwargs['timeout'] = TIMEOUT_REQUEST
         try:
             res = self._mech_open_wrapper(*args, **kwargs)
+            res = self._handle_response(res)
             self.tree = self._get_tree(res)
             return res
         except (IncompleteRead, BadStatusLine, URLError,
@@ -71,19 +106,6 @@ class Browser(mechanize.Browser):
             return mechanize.Browser.follow_link(self, *args, **kwargs)
         except (mechanize.LinkNotFoundError, mechanize.BrowserStateError):
             pass
-
-    def _get_tree(self, response):
-        data = response.read()
-        content_type = response.info().getheader('content-type')
-        res = RE_ENCODING.findall(content_type)
-        if res:
-            try:
-                data = data.decode(res[0], 'replace')
-            except Exception, e:
-                logger.error('failed to decode "%s" at %s: %s' % (res[0],
-                        response.geturl(), str(e)))
-
-        return html.fromstring(data)
 
     def cssselect(self, selector, default=None):
         if self.tree is None:

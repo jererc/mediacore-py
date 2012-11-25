@@ -23,8 +23,6 @@ class Google(Base):
                 url_regex=RE_URL_SEARCH)
 
     def results(self, query, pages_max=1):
-        self.browser.clear_history()
-
         for page in range(1, pages_max + 1):
             if page > 1:
                 if not self._next(page):

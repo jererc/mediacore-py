@@ -59,8 +59,8 @@ class Opensubtitles(Base):
                         })
 
         if not info:
-            data = self.browser.response().get_data()
-            if data and not RE_NO_RESULT.search(data):
+            if self.browser.tree \
+                    and not RE_NO_RESULT.search(self.browser.tree.text_content()):
                 logger.error('failed to find subtitles files at %s' % url)
 
         return info
@@ -100,7 +100,6 @@ class Opensubtitles(Base):
             lang=DEFAULT_LANG):
         if not self.logged:
             return
-        self.browser.clear_history()
 
         fields = {
             'MovieName': name,
