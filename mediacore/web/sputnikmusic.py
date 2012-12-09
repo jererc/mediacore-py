@@ -7,6 +7,8 @@ from lxml import html
 
 from filetools.title import Title, clean
 
+from systools.system import timeout
+
 from mediacore.web import Base
 
 
@@ -107,6 +109,7 @@ class Sputnikmusic(Base):
 
         return info
 
+    @timeout(120)
     def get_info(self, artist, album=None):
         info = self._get_info(artist)
         if not album:
@@ -117,6 +120,7 @@ class Sputnikmusic(Base):
                 if re_album.search(res['name']):
                     return res
 
+    @timeout(120)
     def get_similar(self, artist):
         '''Get similar artists.
         '''
@@ -133,6 +137,7 @@ class Sputnikmusic(Base):
                     break
         return res
 
+    @timeout(120)
     def reviews(self):
         for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):
             self.browser.open(url)
@@ -153,7 +158,6 @@ class Sputnikmusic(Base):
                 try:
                     info['rating'] = float(tr[1][1].text)
                 except Exception:
-                    logger.error('failed to get rating from %s' % log)
                     continue
                 try:
                     y, m, d = RE_DATE_REVIEW.search(tr[1][-1].text).groups()

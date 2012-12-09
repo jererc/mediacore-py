@@ -4,6 +4,8 @@ import gdata.youtube.service
 
 from filetools.title import Title, clean
 
+from systools.system import timeout
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,7 @@ class Youtube(object):
             # res['tags'] = entry.media.keywords.text
             yield res
 
+    @timeout(120)
     def get_trailer(self, title, date=None):
         title = clean(title)
         re_title = Title(title).get_search_re(mode='__all__')
@@ -53,6 +56,7 @@ class Youtube(object):
                 if result['url_watch'] and result['urls_thumbnails']:
                     return result
 
+    @timeout(120)
     def get_track(self, artist, album):
         artist = clean(artist)
         album = clean(album)

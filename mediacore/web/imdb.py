@@ -4,6 +4,8 @@ import logging
 
 from filetools.title import Title, clean
 
+from systools.system import timeout
+
 from mediacore.web import Base
 
 
@@ -140,6 +142,7 @@ class Imdb(Base):
 
         return info
 
+    @timeout(120)
     def get_info(self, query=None, url=None, type='title', year=None):
         if url:
             urls = [url]
@@ -164,6 +167,7 @@ class Imdb(Base):
                     if res:
                         return res
 
+    @timeout(120)
     def get_similar(self, query=None, type='title', year=None):
         '''Get similar movies.
         '''

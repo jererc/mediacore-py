@@ -42,12 +42,7 @@ class Filestube(Base):
 
         size = 0
         for tag in browser.cssselect('#js_files_list tr .tright', []):
-            size_ = get_size(tag.text)
-            if size_:
-                size += size_
-        if not size:
-            logger.error('failed to get size from %s' % url)
-            return
+            size += get_size(tag.text) or 0
 
         return {
             'urls': urls,
@@ -105,6 +100,10 @@ class Filestube(Base):
             browser.open(url)
             if browser.cssselect('#form_captcha'):
                 logger.error('failed to get url from %s: captcha' % url)
+                return
+            tags = browser.cssselect('.error_msg_title')
+            if tags:
+                logger.error('failed to get download url from %s: %s' % (url, tags[0].text))
                 return
 
             tags = browser.cssselect('.download_link')

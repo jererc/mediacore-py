@@ -6,6 +6,8 @@ from lxml import html
 
 from filetools.title import Title, clean
 
+from systools.system import timeout
+
 from mediacore.web import Base
 
 
@@ -129,6 +131,7 @@ class Lastfm(Base):
 
         return info
 
+    @timeout(120)
     def get_info(self, artist, album=None, pages_max=MAX_ALBUMS_PAGES):
         info = self._get_info(artist, pages_max)
         if not album:
@@ -170,6 +173,7 @@ class Lastfm(Base):
                     'url': urljoin(self.url, links[0].get('href')),
                     }
 
+    @timeout(120)
     def get_similar(self, query, pages_max=MAX_SIMILAR_PAGES):
         '''Get similar artists.
         '''

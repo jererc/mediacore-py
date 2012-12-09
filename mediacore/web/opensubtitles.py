@@ -16,7 +16,7 @@ RE_URL_FILE = re.compile(r'/file/[^/]+$', re.I)
 RE_FILE = re.compile(r'\[IMG\](.*)\s+\(.*?\)$', re.I)
 RE_MAXIMUM_DOWNLOAD = re.compile(r'\bmaximum\s+download\s+count\b', re.I)
 RE_ERROR = re.compile(r'\bcritical\s+error\b', re.I)
-RE_NO_RESULT = re.compile(r'<b>No\s+results</b>\s+found', re.I)
+RE_NO_RESULT = re.compile(r'\bno\s+results\s+found\b', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
 RE_BAD_CONTENT_TYPE = re.compile(r'\btext/html\b', re.I)
 
@@ -59,7 +59,7 @@ class Opensubtitles(Base):
                         })
 
         if not info:
-            if self.browser.tree \
+            if self.browser.tree is not None \
                     and not RE_NO_RESULT.search(self.browser.tree.text_content()):
                 logger.error('failed to find subtitles files at %s' % url)
 

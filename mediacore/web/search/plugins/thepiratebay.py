@@ -24,7 +24,7 @@ RE_URL_SORT = {
     'date': re.compile(r'^\s*Uploaded\s*$', re.I),
     'popularity': re.compile(r'^\s*SE\s*$', re.I),
     }
-RE_OVERLOAD = re.compile(r'%s' % re.escape('please try again in a few seconds'), re.I)
+RE_OVERLOAD = re.compile(r'please\s+try\s+again\s+in\s+a\s+few\s+seconds', re.I)
 RE_DETAILS = re.compile(r'uploaded\s+(.*?)\s*,\s*size\s+(.*?)\s*,', re.I)
 RE_DATE = re.compile(r'^(y-day|today|\d\d-\d\d|\d+)\s+(\d\d:\d\d|\d{4}|mins?\s+ago)$', re.I)
 

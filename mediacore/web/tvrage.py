@@ -7,6 +7,8 @@ from lxml import html
 
 from filetools.title import Title, clean, is_url
 
+from systools.system import timeout
+
 from mediacore.web import Base
 
 
@@ -41,6 +43,7 @@ class Tvrage(Base):
                 if re_q.search(clean(link.text)):
                     return self.browser.open(link.absolute_url)
 
+    @timeout(120)
     def get_info(self, query):
         if not self._process(query):
             return
@@ -95,6 +98,7 @@ class Tvrage(Base):
         for link in self.browser.links(text_regex=RE_CURRENT_SHOWS):
             return link.absolute_url
 
+    @timeout(120)
     def get_similar(self, query, years_delta=None):
         info = self.get_info(query)
         if not info:
@@ -139,6 +143,7 @@ class Tvrage(Base):
 
         return res
 
+    @timeout(120)
     def scheduled_shows(self):
         self._process(URL_SCHEDULE)
         for tr in self.browser.cssselect('table tr[id="brow"]', []):

@@ -28,7 +28,7 @@ class SubsceneError(Exception): pass
 
 
 class Subscene(Base):
-    URL = 'http://subscene.com/'
+    URL = 'http://subscene.com'
 
     def __init__(self):
         super(Subscene, self).__init__()
@@ -91,7 +91,8 @@ class Subscene(Base):
             re_sub = None
 
         re_lang = re.compile(r'\b%s\b' % lang, re.I)
-        return self._subtitles_urls(re_name, re_sub, re_lang, date)
+        for res in self._subtitles_urls(re_name, re_sub, re_lang, date):
+            yield res
 
     def _get_subscene_id(self, url):
         browser = RealBrowser()

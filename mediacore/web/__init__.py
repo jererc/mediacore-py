@@ -52,8 +52,8 @@ class Browser(mechanize.Browser):
 
     def _handle_response(self, response):
         if response.info().getheader('content-encoding') == 'gzip':
-            gz = gzip.GzipFile(fileobj=response, mode='rb')
             try:
+                gz = gzip.GzipFile(fileobj=response, mode='rb')
                 data = gz.read()
                 response.set_data(data)
                 self.set_response(response)
@@ -61,7 +61,6 @@ class Browser(mechanize.Browser):
                 pass
             finally:
                 gz.close()
-
         return response
 
     def _get_tree(self, response):
@@ -90,9 +89,9 @@ class Browser(mechanize.Browser):
             res = self._handle_response(res)
             self.tree = self._get_tree(res)
             return res
-        except (IncompleteRead, BadStatusLine, URLError,
-                socket.gaierror, socket.error, socket.timeout,
-                mechanize.BrowserStateError, TimeoutError), e:
+        except (IncompleteRead, BadStatusLine, URLError, socket.gaierror,
+                socket.error, socket.timeout, mechanize.BrowserStateError,
+                TimeoutError), e:
             url = kwargs.get('url', args[0])
             if hasattr(url, 'get_full_url'):
                 url = url.get_full_url()
