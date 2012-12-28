@@ -1,5 +1,5 @@
+from bson.objectid import ObjectId
 from pymongo import Connection
-from pymongo.objectid import ObjectId
 
 
 _connection_uri = 'mongodb://localhost'
