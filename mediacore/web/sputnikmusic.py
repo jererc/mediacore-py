@@ -12,8 +12,6 @@ from systools.system import timeout
 from mediacore.web import Base
 
 
-URL_REVIEWS_STAFF = 'http://www.sputnikmusic.com/staffreviews.php'
-URL_REVIEWS_CONTRIB = 'http://www.sputnikmusic.com/contribreviews.php'
 RE_URL_BAND = re.compile(r'/bands/', re.I)
 RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
@@ -137,41 +135,55 @@ class Sputnikmusic(Base):
                     break
         return res
 
+    def _get_reviews_url(self):
+        for link in self.browser.cssselect('li a', []):
+            if link.text and 'reviews' in link.text.lower():
+                return urljoin(self.url, link.get('href'))
+
     @timeout(120)
     def reviews(self):
-        for url in (URL_REVIEWS_STAFF, URL_REVIEWS_CONTRIB):
-            self.browser.open(url)
-            for tr in self.browser.cssselect('tr.alt1', []):
-                log = html.tostring(tr, pretty_print=True)[:1000]
+        url = self._get_reviews_url()
+        if not url:
+            logger.error('failed to get reviews url at %s' % self.url)
+            return
 
-                info = {}
-                try:
-                    info['artist'] = clean(tr[1][0][0][0].text, 1)
-                except Exception:
-                    logger.error('failed to get artist from %s' % log)
-                    continue
-                try:
-                    info['album'] = clean(tr[1][0][0][1].text, 1)
-                except Exception:
-                    logger.error('failed to get album from %s' % log)
-                    continue
-                try:
-                    info['rating'] = float(tr[1][1].text)
-                except Exception:
-                    continue
-                try:
-                    y, m, d = RE_DATE_REVIEW.search(tr[1][-1].text).groups()
-                    info['date'] = datetime(int(y), int(m), int(d))
-                except Exception:
-                    logger.debug('failed to get date from %s' % log)
-                    continue
-                try:
-                    info['url_review'] = urljoin(self.url, tr[1][0].get('href'))
-                except Exception:
-                    logger.error('failed to get review url from %s' % log)
-                try:
-                    info['url_thumbnail'] = urljoin(self.url, tr[0][0][0].get('src'))
-                except Exception:
-                    logger.error('failed to get thumbnail url from %s' % log)
+        self.browser.open(url)
+        for td in self.browser.cssselect('tr.alt1 td', []):
+            log = html.tostring(td, pretty_print=True)[:1000]
 
-                yield info
+            info = {}
+            links = td.cssselect('a')
+            if not links:
+                logger.error('failed to get release from %s' % log)
+                continue
+
+            try:
+                info['artist'] = clean(links[1][0][0].text, 1)
+            except Exception:
+                logger.error('failed to get artist from %s' % log)
+                continue
+            try:
+                info['album'] = clean(links[1][0][-1].text, 1)
+            except Exception:
+                logger.error('failed to get album from %s' % log)
+                continue
+            try:
+                info['rating'] = float(td[-1][-1].text)
+            except Exception:
+                continue
+            try:
+                y, m, d = RE_DATE_REVIEW.search(td[-1].text).groups()
+                info['date'] = datetime(int(y), int(m), int(d))
+            except Exception:
+                logger.debug('failed to get date from %s' % log)
+                continue
+            try:
+                info['url_review'] = urljoin(self.url, links[0].get('href'))
+            except Exception:
+                logger.error('failed to get review url from %s' % log)
+            try:
+                info['url_thumbnail'] = urljoin(self.url, links[0][0].get('src'))
+            except Exception:
+                logger.error('failed to get thumbnail url from %s' % log)
+
+            yield info

@@ -1,19 +1,17 @@
 import os.path
 import re
-from urlparse import urljoin
-import tempfile
-import shutil
-from contextlib import contextmanager
+from urlparse import urljoin, parse_qs
 import logging
 
 logging.getLogger('requests').setLevel(logging.ERROR)
 import requests
 
 from filetools.title import Title, clean
-from filetools.media import files, move_file
+from filetools.media import files, clean_file, move_file
 from filetools.download import unpack_download
 
 from mediacore.web import Base, RealBrowser
+from mediacore.utils.utils import mkdtemp
 
 
 DEFAULT_LANG = 'english'
@@ -97,9 +95,11 @@ class Subscene(Base):
     def _get_subscene_id(self, url):
         browser = RealBrowser()
         if browser.open(url):
-            elements = browser.find_elements_by_css_selector('form #mac')
-            if elements:
-                return elements[0].get_attribute('value')
+            links = browser.find_elements_by_css_selector('#downloadButton')
+            if links:
+                url = links[0].get_attribute('href')
+                if url:
+                    return parse_qs(url).values()[0]
 
     def _download(self, url, dst):
         mac = self._get_subscene_id(url)
@@ -126,17 +126,10 @@ class Subscene(Base):
                 return
             dir = unpack_download(file)
             for file_ in files(dir, types='subtitles'):
-                file_dst = move_file(file_.file, dst)
+                file_dst = move_file(clean_file(file_.file), dst)
                 if file_dst:
                     files_dst.append(file_dst)
 
+        if not files_dst:
+            logger.error('failed to get subtitles from %s' % url)
         return files_dst
-
-
-@contextmanager
-def mkdtemp(path):
-    temp_dir = tempfile.mkdtemp(prefix='subscene_', dir=path)
-    try:
-        yield temp_dir
-    finally:
-        shutil.rmtree(temp_dir)

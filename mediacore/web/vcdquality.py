@@ -46,7 +46,7 @@ class Vcdquality(Base):
                 links = tr.cssselect('.titleField a')
                 if not links:
                     continue
-                result = {'release': links[0].text}
+                result = {'release': links[1].text}
 
                 dates = tr.cssselect('.dateField')
                 if not dates:

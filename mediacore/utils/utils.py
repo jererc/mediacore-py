@@ -1,6 +1,9 @@
 import re
 import random
 from urlparse import parse_qs
+import tempfile
+import shutil
+from contextlib import contextmanager
 
 
 RE_URL_MAGNET = re.compile(r'^magnet:\?(.*)', re.I)
@@ -38,3 +41,11 @@ def parse_magnet_url(url):
         return parse_qs(qs)
     except Exception:
         pass
+
+@contextmanager
+def mkdtemp(path):
+    temp_dir = tempfile.mkdtemp(prefix='tmp_', dir=path)
+    try:
+        yield temp_dir
+    finally:
+        shutil.rmtree(temp_dir)

@@ -1,24 +1,21 @@
 import re
 from urlparse import urljoin
-from urllib2 import urlopen, URLError
 import logging
 
 from transfer.http import download as download_file
 
 from filetools.title import Title, clean
-from filetools.media import is_html, remove_file
+from filetools.media import is_html, files, clean_file, move_file, remove_file
+from filetools.download import unpack_download
 
 from mediacore.web import Base
+from mediacore.utils.utils import mkdtemp
 
 
 DEFAULT_LANG = 'eng'
-RE_URL_FILE = re.compile(r'/file/[^/]+$', re.I)
-RE_FILE = re.compile(r'\[IMG\](.*)\s+\(.*?\)$', re.I)
 RE_MAXIMUM_DOWNLOAD = re.compile(r'\bmaximum\s+download\s+count\b', re.I)
-RE_ERROR = re.compile(r'\bcritical\s+error\b', re.I)
 RE_NO_RESULT = re.compile(r'\bno\s+results\s+found\b', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
-RE_BAD_CONTENT_TYPE = re.compile(r'\btext/html\b', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +46,21 @@ class Opensubtitles(Base):
 
     def _get_subtitles(self, url):
         info = []
+
         if self.browser.open(url):
-            for link in self.browser.links(url_regex=RE_URL_FILE):
-                res = RE_FILE.findall(clean(link.text))
-                if res:
-                    info.append({
-                        'filename': res[0],
-                        'url': link.absolute_url,
-                        })
+            urls = []
+            for link in self.browser.cssselect('a[title="Download"]', []):
+                url = urljoin(self.url, link.get('href'))
+                if url in urls:
+                    continue
+                filename = link.text
+                if not filename:
+                    continue
+                urls.append(url)
+                info.append({
+                    'filename': filename,
+                    'url': url,
+                    })
 
         if not info:
             if self.browser.tree is not None \
@@ -115,29 +119,12 @@ class Opensubtitles(Base):
 
         if season and episode:
             re_name = Title(name).get_search_re(mode='__all__')
-            re_sub = re.compile(r'[^1-9]%s\D*%s\D' % (season, str(episode).zfill(2)))
         else:
             re_name = Title(name).get_search_re()
-            re_sub = None
 
         for res in self._subtitles_urls(re_name, date=date):
             for result in self._get_subtitles(res):
-                if re_sub and not re_sub.search(result['filename']):
-                    continue
                 yield result
-
-    def _check_url(self, url):
-        try:
-            remote = urlopen(url)
-        except URLError, e:
-            logger.error('failed to open url %s: %s' % (url, str(e)))
-            return
-        if not remote:
-            logger.error('failed to get headers for url %s' % url)
-            return
-        content_type = remote.info().get('content-type')
-        if content_type and not RE_BAD_CONTENT_TYPE.search(content_type):
-            return True
 
     def _check_file(self, file):
         with open(file) as fd:
@@ -151,12 +138,19 @@ class Opensubtitles(Base):
         return True
 
     def download(self, url, dst, temp_dir):
-        if not self._check_url(url):
-            return
-        res = download_file(url, dst, temp_dir)
-        if not res:
-            return
-        if not self._check_file(res[0]):
-            logger.error('invalid subtitles at %s' % url)
-            return
-        return res
+        files_dst = []
+        with mkdtemp(temp_dir) as temp_dst:
+            res = download_file(url, temp_dst, temp_dst)
+            if not res:
+                return
+            if not self._check_file(res[0]):
+                return
+            dir = unpack_download(res[0])
+            for file_ in files(dir, types='subtitles'):
+                file_dst = move_file(clean_file(file_.file), dst)
+                if file_dst:
+                    files_dst.append(file_dst)
+
+        if not files_dst:
+            logger.error('failed to get subtitles from %s' % url)
+        return files_dst

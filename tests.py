@@ -366,7 +366,7 @@ class VcdqualityTest(unittest.TestCase):
         self.max_results = 10
         self.obj = Vcdquality()
 
-    def test_result(self):
+    def test_results(self):
         count = 0
         for res in self.obj.results(pages_max=self.pages_max):
             if not res:
