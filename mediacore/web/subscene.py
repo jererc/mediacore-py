@@ -130,6 +130,4 @@ class Subscene(Base):
                 if file_dst:
                     files_dst.append(file_dst)
 
-        if not files_dst:
-            logger.error('failed to get subtitles from %s' % url)
         return files_dst
