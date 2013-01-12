@@ -9,7 +9,6 @@ class Worker(Model):
     @classmethod
     def get(cls, worker):
         '''Get the worker document.
-        Create one if it does not exist.
 
         :param worker: worker name
         '''

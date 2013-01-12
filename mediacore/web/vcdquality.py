@@ -27,6 +27,7 @@ class Vcdquality(Base):
                 url_regex=re.compile(r'browse'))
 
     def results(self, pages_max=1):
+        now = datetime.utcnow()
         for page in range(1, pages_max + 1):
             if page > 1:
                 if not self._next(page):
@@ -50,9 +51,12 @@ class Vcdquality(Base):
 
                 dates = tr.cssselect('.dateField')
                 if not dates:
-                    logger.error('failed to get date from %s', log)
+                    logger.error('failed to get date from %s' % log)
                     continue
-                date_ = clean(dates[0].text)
-                result['date'] = datetime.strptime('%s %s' % (date_, datetime.utcnow().year), '%d %b %Y')
+                date = datetime.strptime('%s %s' % (clean(dates[0].text), now.year), '%d %b %Y')
+                if date > now:
+                    result['date'] = datetime(date.year - 1, date.month, date.day)
+                else:
+                    result['date'] = date
 
                 yield result
