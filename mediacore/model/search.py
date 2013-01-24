@@ -1,6 +1,9 @@
 from datetime import datetime
 
 from mediacore.utils.db import Model
+from mediacore.model.notification import Notification
+from mediacore.web.info import (get_movies_titles, get_music_albums,
+        InfoException)
 
 
 EXTRA_KEYS = ['album', 'season', 'episode']
@@ -60,3 +63,30 @@ class Search(Model):
             res['season'] += 1
             res['episode'] = 1
             return res
+
+
+def add_movies(artist, langs):
+    try:
+        titles = get_movies_titles(artist)
+    except InfoException, e:
+        Notification.add('failed to find movies from "%s": %s' % (artist, str(e)))
+        return
+    if not titles:
+        Notification.add('failed to find movies from "%s"' % artist)
+        return
+    for title in titles:
+        Search.add(title, category='movies', langs=langs)
+        Notification.add('new movies search "%s"' % title)
+
+def add_music(artist):
+    try:
+        albums = get_music_albums(artist)
+    except InfoException, e:
+        Notification.add('failed to find albums from "%s": %s' % (artist, str(e)))
+        return
+    if not albums:
+        Notification.add('failed to find albums from "%s"' % artist)
+        return
+    for album in albums:
+        Search.add(artist, album=album, category='music')
+        Notification.add('new music search "%s - %s"' % (artist, album))

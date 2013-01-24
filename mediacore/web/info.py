@@ -37,19 +37,19 @@ def get_music_albums(band):
 
     info_sputnikmusic = sputnikmusic.get_info(band) or {}
     info_lastfm = lastfm.get_info(band) or {}
-    albums_info = info_lastfm.get('albums', []) + info_sputnikmusic.get('albums', [])
+    albums_info = info_sputnikmusic.get('albums', []) + info_lastfm.get('albums', [])
 
     return list(set([a['name'] for a in albums_info]))
 
-def similar_movies(query, type='title', year=None, randomized=True,
-            filters=None):
+def similar_movies(query, type='title', year=None, filters=None,
+        randomize_titles=True):
     '''Iterate over similar movies from a director, actor or movie title.
     '''
     imdb = Imdb()
     similar_movies = imdb.get_similar(query, type=type, year=year)
     if not similar_movies:
         return
-    if randomized:
+    if randomize_titles:
         similar_movies = randomize(similar_movies)
 
     for movie_info in similar_movies:
@@ -58,14 +58,15 @@ def similar_movies(query, type='title', year=None, randomized=True,
             continue
         yield movie_info['title']
 
-def similar_tv(query, years_delta=None, randomized=True, filters=None):
+def similar_tv(query, years_delta=None, filters=None,
+        randomize_titles=True):
     '''Iterate over similar tv shows from a tv show name.
     '''
     tvrage = Tvrage()
     similar_tv = tvrage.get_similar(query, years_delta=years_delta)
     if not similar_tv:
         return
-    if randomized:
+    if randomize_titles:
         similar_tv = randomize(similar_tv)
 
     for tv_info in similar_tv:
@@ -74,7 +75,8 @@ def similar_tv(query, years_delta=None, randomized=True, filters=None):
             continue
         yield tv_info['title']
 
-def similar_music(band, randomized=True, filters=None):
+def similar_music(band, filters=None,
+        randomize_bands=True, randomize_albums=False):
     '''Iterate over similar artists albums from a music band.
     '''
     objects = (Sputnikmusic(), Lastfm())
@@ -85,7 +87,7 @@ def similar_music(band, randomized=True, filters=None):
             similar_bands.extend([r['title'] for r in res])
 
     similar_bands = list(set(similar_bands))
-    if randomized:
+    if randomize_bands:
         similar_bands = randomize(similar_bands)
 
     for similar_band in similar_bands:
@@ -96,7 +98,7 @@ def similar_music(band, randomized=True, filters=None):
             albums = info.get('albums')
             if not albums:
                 continue
-            if randomized:
+            if randomize_albums:
                 albums = randomize(albums)
 
             type = obj.__class__.__name__.lower()

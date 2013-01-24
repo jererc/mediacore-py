@@ -85,3 +85,19 @@ class Media(Model):
         for res in cls.search(*args, **kwargs):
             files.extend(res['files'])
         return files
+
+    @classmethod
+    def get_search(cls, media):
+        category = media['info']['subtype']
+        if category == 'tv':
+            name = media['info']['name']
+        elif category == 'music':
+            name = media['info']['artist']
+        else:
+            name = media['info']['full_name']
+        res = {
+            'name': name,
+            'category': category,
+            'media_id': media['_id'],
+            }
+        return res

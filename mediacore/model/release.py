@@ -6,19 +6,18 @@ class Release(Model):
 
     @classmethod
     def get_search(cls, release, langs=None):
-        subtype = release['info']['subtype']
+        category = release['info']['subtype']
         res = {
             'name': release['name'],
-            'category': subtype,
+            'category': category,
             'langs': langs or [],
             'release_id': release['_id'],
             }
-        if subtype == 'tv':
+        if category == 'tv':
             res['mode'] = 'inc'
             res['season'] = 1
             res['episode'] = 1
-        elif subtype == 'music':
+        elif category == 'music':
             res['name'] = release['artist']
             res['album'] = release['album']
-
         return res
