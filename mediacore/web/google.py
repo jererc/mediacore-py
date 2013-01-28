@@ -35,7 +35,7 @@ class Google(Base):
 
                 links = div.cssselect('a')
                 if not links:
-                    logger.error('failed to get links from %s', log)
+                    logger.error('failed to get links from %s' % log)
                     continue
                 title = self.get_link_text(html.tostring(links[0]))
                 if not title:

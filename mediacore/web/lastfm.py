@@ -118,7 +118,7 @@ class Lastfm(Base):
         # Get albums
         links = self.browser.cssselect('.artist-top-albums a')
         if not links:
-            logger.debug('failed to find albums link for "%s" at %s', query, url)
+            logger.debug('failed to find albums link for "%s" at %s' % (query, url))
             return info
         elif not RE_ALBUMS.search(links[0].text):
             return
@@ -150,7 +150,7 @@ class Lastfm(Base):
         links = self.browser.cssselect('.similar-artists a')
         if links and RE_SIMILAR.search(links[0].text):
             return urljoin(self.url, links[0].get('href'))
-        logger.error('failed to find similar artists link for %s at %s', query, url)
+        logger.error('failed to find similar artists link for %s at %s' % (query, url))
 
     def _similar_artists(self, url, pages_max):
         for i in range(pages_max):

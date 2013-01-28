@@ -45,7 +45,7 @@ class Torrentz(Base):
         browser.open(url)
         results = browser.cssselect('div.download dl')
         if not results:
-            logger.error('failed to get mirror urls from %s', url)
+            logger.error('failed to get mirror urls from %s' % url)
             return
 
         for result in results:
@@ -65,7 +65,7 @@ class Torrentz(Base):
         '''
         browser = Browser()
         if not browser.open(url):
-            logger.debug('failed to get torrent url from %s', url)
+            logger.debug('failed to get torrent url from %s' % url)
             return
 
         for link in browser.links(url_regex=RE_URL_MAGNET):
@@ -127,7 +127,7 @@ class Torrentz(Base):
             # Skip approximate matches
             res = self.browser.cssselect('div.results h3')
             if not res:
-                logger.error('failed to check approximate matches at %s', self.browser.geturl())
+                logger.error('failed to check approximate matches at %s' % self.browser.geturl())
             elif RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
                 break
 
@@ -154,7 +154,7 @@ class Torrentz(Base):
                         res = RE_CATEGORIES.search(html.tostring(links[0]))
                         result.category = self._get_category(res.group(1))
                     except Exception:
-                        logger.error('failed to get category info from %s', log)
+                        logger.error('failed to get category info from %s' % log)
 
                     if category and category != result.category:
                         continue
@@ -166,12 +166,12 @@ class Torrentz(Base):
                         date = dl.cssselect('.a')[0][0].get('title')
                         result.date = self._get_date(date)
                     except Exception:
-                        logger.debug('failed to get date from %s', log)
+                        logger.debug('failed to get date from %s' % log)
                         continue
                     try:
                         size = dl.cssselect('.s')[0].text
                     except Exception:
-                        logger.debug('failed to get size from %s', log)
+                        logger.debug('failed to get size from %s' % log)
                         continue
                     if not result.get_size(size):
                         continue
@@ -183,7 +183,7 @@ class Torrentz(Base):
                         seeds = dl.cssselect('.d')[0].text
                         result.seeds = int(seeds.replace(',', ''))
                     except Exception:
-                        logger.debug('failed to get seeds from %s', log)
+                        logger.debug('failed to get seeds from %s' % log)
 
                     # Find torrent url
                     url_info = urljoin(self.url, links[0].get('href'))

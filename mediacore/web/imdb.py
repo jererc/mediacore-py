@@ -51,7 +51,7 @@ class Imdb(Base):
         if date:
             info['date'] = date
         else:
-            logger.debug('failed to get date from %s', url)
+            logger.debug('failed to get date from %s' % url)
 
         res = self.browser.cssselect('#img_primary img')
         if res:
@@ -100,7 +100,7 @@ class Imdb(Base):
             title = links[-1].text
             res = RE_TITLE.search(title)
             if not res:
-                logger.error('failed to get title and date from "%s"', title)
+                logger.error('failed to get title and date from "%s"' % title)
                 continue
 
             title, date = res.groups()
