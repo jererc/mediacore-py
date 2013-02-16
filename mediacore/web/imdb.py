@@ -67,6 +67,8 @@ class Imdb(Base):
 
         tags = self.browser.cssselect('div.txt-block', []) + self.browser.cssselect('div.inline', [])
         for tag in tags:
+            if tag is None:
+                continue
             title = clean(tag[0].text, 1)
             if title.startswith('director'):
                 info['director'] = [clean(a.text, 1) for a in tag.cssselect('a') if not RE_NAMES_EXCL.search(a.text)]
