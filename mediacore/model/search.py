@@ -21,7 +21,7 @@ class Search(Model):
             'langs': langs or [],
             }
         for key in EXTRA_KEYS:
-            if key in kwargs:
+            if kwargs.get(key):
                 doc[key] = kwargs[key]
 
         if not cls.find_one(doc):
