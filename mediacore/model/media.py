@@ -4,7 +4,7 @@ from datetime import datetime
 from mediacore.utils.db import Model
 
 from filetools.media import files, get_file, get_mtime
-from filetools.title import clean
+from filetools.title import Title, clean
 
 
 TYPES = ['video', 'audio']
@@ -60,22 +60,24 @@ class Media(Model):
         '''Get media matching the parameters.
         '''
         spec = {'info.subtype': category}
+        name_ = Title(name)
 
         if category == 'movies':
-            spec['info.full_name'] = clean(name, 1)
+            spec['info.full_name'] = {'$regex': name_.get_search_pattern(), '$options': 'i'}
 
         elif category in ('tv', 'anime'):
             spec['info.subtype'] = 'tv'
-            spec['info.name'] = clean(name, 1)
+            spec['info.name'] = {'$regex': name_.get_search_pattern('__all__'), '$options': 'i'}
             if kwargs.get('season'):
                 spec['info.season'] = str(kwargs['season'])
             if kwargs.get('episode'):
                 spec['info.episode'] = {'$regex': '^0*%s$' % kwargs['episode']}
 
         elif category == 'music':
-            spec['info.artist'] = clean(name, 1)
+            spec['info.artist'] = {'$regex': name_.get_search_pattern(), '$options': 'i'}
             if kwargs.get('album'):
-                spec['info.album'] = clean(kwargs['album'], 1)
+                album_ = Title(kwargs['album'])
+                spec['info.album'] = {'$regex': album_.get_search_pattern(), '$options': 'i'}
 
         return list(cls.find(spec))
 
