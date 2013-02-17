@@ -67,7 +67,7 @@ class Media(Model):
 
         elif category in ('tv', 'anime'):
             spec['info.subtype'] = 'tv'
-            spec['info.name'] = {'$regex': name_.get_search_pattern('__all__'), '$options': 'i'}
+            spec['info.name'] = {'$regex': name_.get_search_pattern(category='tv'), '$options': 'i'}
             if kwargs.get('season'):
                 spec['info.season'] = str(kwargs['season'])
             if kwargs.get('episode'):
