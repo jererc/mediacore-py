@@ -71,9 +71,9 @@ class Imdb(Base):
                 continue
             title = clean(tag[0].text, 1)
             if title.startswith('director'):
-                info['director'] = [clean(a.text, 1) for a in tag.cssselect('a') if not RE_NAMES_EXCL.search(a.text)]
+                info['director'] = [clean(a.text, 1) for a in tag.cssselect('a span') if not RE_NAMES_EXCL.search(a.text)]
             elif title == 'stars':
-                info['stars'] = [clean(a.text, 1) for a in tag.cssselect('a') if not RE_NAMES_EXCL.search(a.text)]
+                info['stars'] = [clean(a.text, 1) for a in tag.cssselect('a span') if not RE_NAMES_EXCL.search(a.text)]
             elif title == 'country':
                 info['country'] = [clean(a.text, 1) for a in tag.cssselect('a')]
             elif title == 'genres':
