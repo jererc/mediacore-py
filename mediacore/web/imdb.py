@@ -67,7 +67,7 @@ class Imdb(Base):
 
         tags = self.browser.cssselect('div.txt-block', []) + self.browser.cssselect('div.inline', [])
         for tag in tags:
-            if tag is None:
+            if tag is None or not len(tag):
                 continue
             title = clean(tag[0].text, 1)
             if title.startswith('director'):
