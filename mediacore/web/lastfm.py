@@ -75,6 +75,12 @@ class Lastfm(Base):
                 else:
                     logger.error('failed to get album url from %s' % log)
 
+                url_thumbnails = tag.cssselect('.album-item-cover img')
+                if url_thumbnails:
+                    info_album['url_thumbnail'] = url_thumbnails[0].get('src')
+                else:
+                    logger.error('failed to get album thumbnail url from %s' % log)
+
                 date_tags = tag.cssselect('time')
                 if not date_tags:
                     continue
@@ -104,7 +110,7 @@ class Lastfm(Base):
         self.browser.open(url)
 
         info = {
-            'url_band': url,
+            'url': url,
             'albums': [],
             }
 

@@ -115,13 +115,17 @@ def search_extra(obj):
     '''Get an object extra info.
     '''
     extra = {}
+
+    def set_extra(key, val):
+        extra[key] = val or obj.get('extra', {}).get(key, {})
+
     info = obj.get('info', {})
     category = info.get('subtype') or obj.get('category')
 
     if category in ('movies', 'tv', 'anime'):
         if category in ('tv', 'anime'):
             name = info.get('name') or obj.get('name')
-            extra['tvrage'] = Tvrage().get_info(name) or {}
+            set_extra('tvrage', Tvrage().get_info(name))
         else:
             name = info.get('full_name') or obj.get('name')
 
@@ -134,69 +138,16 @@ def search_extra(obj):
             elif obj.get('date'):
                 date = obj['date'].year
 
-        extra['imdb'] = Imdb().get_info(name, year=date) or {}
-
+        set_extra('imdb', Imdb().get_info(name, year=date))
         date = extra.get('tvrage', {}).get('date') or extra['imdb'].get('date') or date
-        extra['youtube'] = Youtube().get_trailer(name, date=date) or {}
+        set_extra('youtube', Youtube().get_trailer(name, date=date))
 
     elif category == 'music':
         artist = info.get('artist') or obj.get('artist') or obj.get('name')
         album = info.get('album') or obj.get('album')
 
-        extra['sputnikmusic'] = Sputnikmusic().get_info(artist, album) or {}
-        extra['lastfm'] = Lastfm().get_info(artist, album) or {}
-        extra['youtube'] = Youtube().get_track(artist, album) or {}
+        set_extra('sputnikmusic', Sputnikmusic().get_info(artist, album))
+        set_extra('lastfm', Lastfm().get_info(artist, album))
+        set_extra('youtube', Youtube().get_track(artist, album))
 
     return extra
-
-def _get_rating_str(extra):
-    if 'imdb' in extra:
-        rating = extra['imdb'].get('rating')
-        if rating is not None:
-            return '%s/10' % rating
-
-    elif 'sputnikmusic' in extra:
-        rating = extra['sputnikmusic'].get('rating')
-        if rating is not None:
-            return '%s/5' % rating
-
-def _get_clean_extra(extra):
-    res = {}
-
-    for type, info in extra.items():
-        res.setdefault(type, {})
-
-        for key in ('date', 'rating', 'classification', 'genre', 'country',
-                'network', 'next_episode', 'director', 'stars', 'airs',
-                'runtime', 'title'):
-            val = info.get(key)
-            if isinstance(val, (tuple, list)):
-                val = ', '.join(val)
-            res[type][key] = val
-
-    return res
-
-def get_info(obj):
-    '''Get an object info.
-    '''
-    extra = obj.get('extra', {})
-    category = obj.get('info', {}).get('subtype') or obj.get('category')
-    info = {
-        'category': category,
-        'url_thumbnail': extra.get('youtube', {}).get('urls_thumbnails', [None])[0],
-        'url_watch': extra.get('youtube', {}).get('url_watch'),
-        'rating': _get_rating_str(extra),
-        'extra': _get_clean_extra(extra),
-        }
-
-    if category == 'movies':
-        info['url_info'] = extra.get('imdb', {}).get('url')
-
-    elif category in ('tv', 'anime'):
-        info['url_info'] = extra.get('tvrage', {}).get('url') or extra.get('imdb', {}).get('url')
-
-    elif category == 'music':
-        info['url_info'] = extra.get('sputnikmusic', {}).get('url') or extra.get('lastfm', {}).get('url')
-        info['url_thumbnail'] = extra.get('sputnikmusic', {}).get('url_cover') or info['url_thumbnail']
-
-    return info

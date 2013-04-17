@@ -33,9 +33,9 @@ logger = logging.getLogger(__name__)
 
 class Thepiratebay(Base):
     URL = [
-        'http://livepirate.com',
-        'http://pirateproxy.net',
         'https://piratereverse.info',
+        'http://pirateproxy.net',
+        'http://livepirate.com',
         ]
 
     def _get_date(self, val):

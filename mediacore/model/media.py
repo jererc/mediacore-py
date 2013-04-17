@@ -4,7 +4,7 @@ from datetime import datetime
 from mediacore.utils.db import Model
 
 from filetools.media import files, get_file, get_mtime
-from filetools.title import Title, clean
+from filetools.title import Title
 
 
 TYPES = ['video', 'audio']
@@ -90,16 +90,19 @@ class Media(Model):
 
     @classmethod
     def get_search(cls, media):
-        category = media['info']['subtype']
-        if category == 'tv':
-            name = media['info']['name']
-        elif category == 'music':
-            name = media['info']['artist']
-        else:
-            name = media['info']['full_name']
         res = {
-            'name': name,
-            'category': category,
+            'category': media['info']['subtype'],
             'media_id': media['_id'],
             }
+        if res['category'] == 'tv':
+            res['name'] = media['info']['name']
+            if media['info']['season']:
+                res['season'] = int(media['info']['season'])
+            if media['info']['episode']:
+                res['episode'] = int(media['info']['episode'])
+        elif res['category'] == 'music':
+            res['name'] = media['info']['artist']
+            res['album'] = media['info']['album']
+        else:
+            res['name'] = media['info']['full_name']
         return res

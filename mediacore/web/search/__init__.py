@@ -28,21 +28,26 @@ class Result(dotdict):
             }
         super(Result, self).__init__(init)
 
-    def _validate_title(self, re_incl=None, re_excl=None, clean=True):
+    def _get_regex(self, val):
+        if isinstance(val, (str, unicode)):
+            return re.compile(val, re.I)
+        return val
+
+    def _validate_title(self, include=None, exclude=None, clean=True):
         title = Title(self.title).full_name if clean else self.title
 
-        if re_incl:
-            if not isinstance(re_incl, (tuple, list)):
-                re_incl = [re_incl]
-            for re_ in re_incl:
-                if re_ and not re_.search(title):
+        if include:
+            if not isinstance(include, (tuple, list)):
+                include = [include]
+            for include_ in include:
+                if include_ and not self._get_regex(include_).search(title):
                     return False
 
-        if re_excl:
-            if not isinstance(re_excl, (tuple, list)):
-                re_excl = [re_excl]
-            for re_ in re_excl:
-                if re_ and re_.search(title):
+        if exclude:
+            if not isinstance(exclude, (tuple, list)):
+                exclude = [exclude]
+            for exclude_ in exclude:
+                if exclude_ and self._get_regex(exclude_).search(title):
                     return False
 
         return True
@@ -59,17 +64,17 @@ class Result(dotdict):
         '''Validate the result attributes.
 
         :param kwargs: filters
-            - re_incl: regex the title must match
-            - re_excl: regex the title must not match
-            - re_incl_raw: regex the raw title must match
-            - re_excl_raw: regex the raw title must not match
+            - include_raw: regex the raw title must match
+            - exclude_raw: regex the raw title must not match
+            - include: regex the title must match
+            - exclude: regex the title must not match
             - langs: langs the title must match
-            - size_min: minimum result size
-            - size_max: maximum result size
+            - size_min: minimum size in MB
+            - size_max: maximum size in MB
         '''
-        if not self._validate_title(kwargs.get('re_incl_raw'), kwargs.get('re_excl_raw'), clean=False):
+        if not self._validate_title(kwargs.get('include_raw'), kwargs.get('exclude_raw'), clean=False):
             return
-        if not self._validate_title(kwargs.get('re_incl'), kwargs.get('re_excl')):
+        if not self._validate_title(kwargs.get('include'), kwargs.get('exclude')):
             return
         if not self._validate_lang(kwargs.get('langs')):
             return

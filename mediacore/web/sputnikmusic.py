@@ -40,7 +40,7 @@ class Sputnikmusic(Base):
         if not url:
             return
         info = {
-            'url_band': url,
+            'url': url,
             'albums': [],
             }
 
@@ -99,7 +99,7 @@ class Sputnikmusic(Base):
                 except Exception:
                     info_album['date'] = None
                 try:
-                    info_album['url_cover'] = urljoin(self.url, tds[0][0][0].get('src'))
+                    info_album['url_thumbnail'] = urljoin(self.url, tds[0][0][0].get('src'))
                 except Exception:
                     logger.error('failed to get cover url from %s' % log)
 

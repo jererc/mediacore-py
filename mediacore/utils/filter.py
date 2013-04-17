@@ -5,12 +5,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _validate_string(val, exclude=None, include=None):
-    if isinstance(val, (tuple, list)):
+def _get_pattern(val):
+    if isinstance(val, (list, tuple)):
+        return r'\b(%s)\b' % '|'.join(val)
+    return val
+
+def _validate_string(val, include=None, exclude=None):
+    if isinstance(val, (list, tuple)):
         val = ' '.join(val)
-    if exclude and re.compile(exclude, re.I).search(val):
+    if include and not re.compile(_get_pattern(include), re.I).search(val):
         return
-    if include and not re.compile(include, re.I).search(val):
+    if exclude and re.compile(_get_pattern(exclude), re.I).search(val):
         return
     return True
 
@@ -21,28 +26,24 @@ def _validate_number(val, min=None, max=None):
         return
     return True
 
-def _filter(filters):
-    for val in filters.values():
-        if isinstance(val, (int, float)):
-            return _validate_number
-        else:
-            return _validate_string
+def _validate(val, filters):
+    if isinstance(val, (int, float)):
+        callable = _validate_number
+    else:
+        callable = _validate_string
+    return callable(val, **filters)
 
 def validate_info(info, filters):
-    '''Validate media extra info.
-
-    :return: bool, or None if a field is missing
-    '''
     for key, filters in filters.items():
         val = info.get(key)
         if val is None:
             return None
 
         try:
-            if not _filter(filters)(val, **filters):
+            if not _validate(val, filters):
                 return False
         except Exception:
-            logger.error('failed to validate field "%s" using filters %s' % (key, filters))
+            logger.error('failed to validate field "%s" (%s) using filters %s' % (key, val, filters))
             return None
 
     return True

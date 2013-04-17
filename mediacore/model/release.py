@@ -5,12 +5,11 @@ class Release(Model):
     COL = 'releases'
 
     @classmethod
-    def get_search(cls, release, langs=None):
+    def get_search(cls, release):
         category = release['info']['subtype']
         res = {
             'name': release['name'],
             'category': category,
-            'langs': langs or [],
             'release_id': release['_id'],
             }
         if category == 'tv':

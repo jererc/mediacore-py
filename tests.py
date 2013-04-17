@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import re
 import shutil
 import tempfile
 from datetime import timedelta
@@ -11,6 +12,8 @@ import logging
 from mock import patch, Mock
 
 from mediacore.utils.utils import parse_magnet_url
+from mediacore.utils.filter import validate_info, validate_extra
+from mediacore.utils.filter import logger as filter_logger
 
 from mediacore.web.google import Google
 from mediacore.web.youtube import Youtube
@@ -99,6 +102,201 @@ class MagnetUrlTest(unittest.TestCase):
         self.assertTrue(isinstance(res, dict))
         self.assertEqual(res.get('dn'), ['TITLE'])
         self.assertEqual(sorted(res.get('key')), ['VALUE1', 'VALUE2', 'VALUE3'])
+
+
+def no_logging(*args, **kwargs): pass
+
+filter_logger.error = no_logging
+
+class FilterTest(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    # Invalid
+    def test_int_invalid_filter_type(self):
+        info = {'rating': 5}
+        filters = {'rating': 4}
+        self.assertEqual(validate_info(info, filters), None)
+
+    def test_int_invalid_filter_name(self):
+        info = {'rating': 5}
+        filters = {'rating': {'invalid': 4}}
+        self.assertEqual(validate_info(info, filters), None)
+
+    def test_string_invalid_filter_type(self):
+        info = {'genre': 'genre1'}
+        filters = {'genre': 'genre1'}
+        self.assertEqual(validate_info(info, filters), None)
+
+    def test_string_invalid_filter_name(self):
+        info = {'genre': 'genre1'}
+        filters = {'genre': {'invalid': ['genre1']}}
+        self.assertEqual(validate_info(info, filters), None)
+
+    def test_int_none_match(self):
+        info = {'rating': 5}
+        filters = {'rating': {'min': None}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_int_empty_string_match(self):
+        info = {'rating': 5}
+        filters = {'rating': {'min': ''}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_list_empty_string_match(self):
+        info = {'genre': ['genre1', 'genre2']}
+        filters = {'genre': {'include': ''}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_string_empty_list_match(self):
+        info = {'genre': ['genre1', 'genre2']}
+        filters = {'genre': {'include': []}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_list_empty_string_match(self):
+        info = {'genre': ['genre1', 'genre2']}
+        filters = {'genre': {'exclude': ''}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_string_empty_list_match(self):
+        info = {'genre': ['genre1', 'genre2']}
+        filters = {'genre': {'exclude': []}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    # Int
+    def test_int_no_match(self):
+        info = {'rating': 5}
+        filters = {'rating': {'min': 6}}
+        self.assertEqual(validate_info(info, filters), False)
+
+    def test_int_match(self):
+        info = {'rating': 5}
+        filters = {'rating': {'min': 4}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    # String
+    def test_include_empty_string_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': ''}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_empty_string_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': ''}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_string_no_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': '\bgenre3\b'}}
+        self.assertEqual(validate_info(info, filters), False)
+
+    def test_include_string_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': '\\bgenre1\\b'}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_string_no_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': '\bgenre3\b'}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_string_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': '\\bgenre1\\b'}}
+        self.assertEqual(validate_info(info, filters), False)
+
+    # List
+    def test_include_empty_list_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': []}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_empty_list_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': []}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_list_no_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': ['genre3', 'genre4']}}
+        self.assertEqual(validate_info(info, filters), False)
+
+    def test_include_list_match_string(self):
+        info = {'genres': 'genre1'}
+        filters = {'genres': {'include': ['genre1', 'genre3']}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_list_single_match_list(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': ['genre1']}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_include_list_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': ['genre1', 'genre3']}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_list_single_match_list(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': ['genre3']}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_list_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'include': ['genre3', 'genre4']}}
+        self.assertEqual(validate_info(info, filters), True)
+
+    def test_exclude_list_single_no_match_list(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': ['genre1']}}
+        self.assertEqual(validate_info(info, filters), False)
+
+    def test_exclude_list_match(self):
+        info = {'genres': ['genre1', 'genre2']}
+        filters = {'genres': {'exclude': ['genre1', 'genre3']}}
+        self.assertEqual(validate_info(info, filters), False)
+
+
+class ResultTest(unittest.TestCase):
+
+    def setUp(self):
+        self.result = Result()
+        self.result.title = 'test title'
+
+    # Include
+    def test_not_validate_result_include_regex(self):
+        regex = re.compile('\\bother\\b', re.I)
+        self.assertFalse(self.result._validate_title(include=regex))
+
+    def test_not_validate_result_include_string(self):
+        regex = '\\bother\\b'
+        self.assertFalse(self.result._validate_title(include=regex))
+
+    def test_validate_result_include_regex(self):
+        regex = re.compile('\\btest\\b', re.I)
+        self.assertTrue(self.result._validate_title(include=regex))
+
+    def test_validate_result_include_string(self):
+        regex = '\\btest\\b'
+        self.assertTrue(self.result._validate_title(include=regex))
+
+    # Exclude
+    def test_not_validate_result_exclude_regex(self):
+        regex = re.compile('\\btest\\b', re.I)
+        self.assertFalse(self.result._validate_title(exclude=regex))
+
+    def test_not_validate_result_exclude_string(self):
+        regex = '\\btest\\b'
+        self.assertFalse(self.result._validate_title(exclude=regex))
+
+    def test_validate_result_exclude_regex(self):
+        regex = re.compile('\\bother\\b', re.I)
+        self.assertTrue(self.result._validate_title(exclude=regex))
+
+    def test_validate_result_exclude_string(self):
+        regex = '\\bother\\b'
+        self.assertTrue(self.result._validate_title(exclude=regex))
 
 
 #
@@ -268,20 +466,20 @@ class SputnikmusicTest(unittest.TestCase):
         self.album = ALBUM
         self.album_year = ALBUM_YEAR
 
-    def test_get_artist_info(self):
+    def test_get_info_artist(self):
         res = self.obj.get_info(self.artist)
 
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
-        for key in ('url_band', 'albums'):
+        for key in ('url', 'albums'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
 
-    def test_get_album_info(self):
+    def test_get_info_album(self):
         res = self.obj.get_info(self.artist, self.album)
 
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
         self.assertEqual(res.get('name'), self.album.lower())
         self.assertEqual(res.get('date'), self.album_year)
-        for key in ('rating', 'url', 'url_cover'):
+        for key in ('rating', 'url', 'url_thumbnail'):
             self.assertTrue(res.get(key), 'failed to get %s for artist "%s" album "%s"' % (key, self.artist, self.album))
 
     def test_get_similar(self):
@@ -316,7 +514,7 @@ class LastfmTest(unittest.TestCase):
         res = self.obj.get_info(self.artist)
 
         self.assertTrue(res, 'failed to get info for "%s"' % self.artist)
-        for key in ('url_band', 'albums'):
+        for key in ('url', 'albums'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, self.artist))
 
     def test_get_info_album(self):
