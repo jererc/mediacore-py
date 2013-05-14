@@ -25,7 +25,7 @@ RE_FILENAME = re.compile(r'filename="(.*)";?', re.I)
 logger = logging.getLogger(__name__)
 
 
-class BinsearchException(Exception): pass
+class BinsearchError(Exception): pass
 
 
 class Binsearch(Base):
@@ -134,15 +134,15 @@ def _get_collection(url):
 def get_nzb(url):
     collection = _get_collection(url)
     if not collection:
-        raise BinsearchException('failed to get collection from %s' % url)
+        raise BinsearchError('failed to get collection from %s' % url)
     data = {'action': 'nzb'}
     for ref in collection:
         data[ref] = 'on'
     headers = {'content-type': 'application/x-www-form-urlencoded'}
     response = requests.post(url, headers=headers, data=data)
     if response.status_code != requests.codes.ok:
-        raise BinsearchException('failed to process request to %s' % url)
+        raise BinsearchError('failed to process request to %s' % url)
     res = RE_FILENAME.findall(response.headers.get('content-disposition', ''))
     if not res:
-        raise BinsearchException('failed to get filename from response headers %s' % response.headers)
+        raise BinsearchError('failed to get filename from response headers %s' % response.headers)
     return response.content

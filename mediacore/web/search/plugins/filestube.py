@@ -21,7 +21,7 @@ SORT_DEF = {
 logger = logging.getLogger(__name__)
 
 
-class FilestubeException(Exception): pass
+class FilestubeError(Exception): pass
 
 
 class Filestube(Base):
@@ -116,7 +116,7 @@ def _get_download_url(url):
             if res:
                 return res[0]
 
-    raise FilestubeException('failed to get download url from %s' % url)
+    raise FilestubeError('failed to get download url from %s' % url)
 
 def get_download_urls(url):
     if not isinstance(url, (list, tuple)):
