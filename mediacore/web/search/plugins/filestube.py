@@ -102,12 +102,10 @@ def _get_download_url(url):
     if 'mediafire' in netloc_parts:
         browser.open(url)
         if browser.cssselect('#form_captcha'):
-            logger.error('failed to get url from %s: captcha' % url)
-            return
+            raise FilestubeError('failed to get url from %s: captcha' % url)
         tags = browser.cssselect('.error_msg_title')
         if tags:
-            logger.error('failed to get download url from %s: %s' % (url, tags[0].text))
-            return
+            raise FilestubeError('failed to get download url from %s: %s' % (url, tags[0].text))
 
         tags = browser.cssselect('.download_link')
         if tags:
