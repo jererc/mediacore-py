@@ -12,7 +12,7 @@ from mediacore.utils.filter import validate_info
 from mediacore.utils.utils import randomize
 
 
-class InfoException(Exception): pass
+class InfoError(Exception): pass
 
 
 def get_movies_titles(name):
@@ -20,7 +20,7 @@ def get_movies_titles(name):
     '''
     imdb = Imdb()
     if not imdb.url:
-        raise InfoException('failed to connect to imdb')
+        raise InfoError('failed to connect to imdb')
 
     info = imdb.get_info(name, type='name') or {}
     movies_info = info.get('titles_known_for', [])
@@ -32,10 +32,10 @@ def get_music_albums(band):
     '''
     sputnikmusic = Sputnikmusic()
     if not sputnikmusic.url:
-        raise InfoException('failed to connect to sputnikmusic')
+        raise InfoError('failed to connect to sputnikmusic')
     lastfm = Lastfm()
     if not lastfm.url:
-        raise InfoException('failed to connect to lastfm')
+        raise InfoError('failed to connect to lastfm')
 
     info_sputnikmusic = sputnikmusic.get_info(band) or {}
     info_lastfm = lastfm.get_info(band) or {}

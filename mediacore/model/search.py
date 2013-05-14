@@ -2,8 +2,8 @@ from datetime import datetime
 import logging
 
 from mediacore.utils.db import Model
-from mediacore.web.info import (get_movies_titles, get_music_albums,
-        InfoException)
+from mediacore.web.info import (get_movies_titles,
+        get_music_albums, InfoError)
 
 
 EXTRA_KEYS = ['album', 'season', 'episode']
@@ -70,7 +70,7 @@ class Search(Model):
 def add_movies(artist, langs):
     try:
         titles = get_movies_titles(artist)
-    except InfoException, e:
+    except InfoError, e:
         logger.info('failed to find movies from "%s": %s' % (artist, str(e)))
         return
     if not titles:
@@ -82,7 +82,7 @@ def add_movies(artist, langs):
 def add_music(artist):
     try:
         albums = get_music_albums(artist)
-    except InfoException, e:
+    except InfoError, e:
         logger.info('failed to find albums from "%s": %s' % (artist, str(e)))
         return
     if not albums:
