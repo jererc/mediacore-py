@@ -2,6 +2,8 @@ import re
 from urlparse import urljoin
 import logging
 
+from lxml import html
+
 from filetools.title import Title, clean
 
 from systools.system import timeout
@@ -13,9 +15,8 @@ RE_URLS = {
     'title': re.compile(r'/title/[\w\d]+', re.I),
     'name': re.compile(r'/name/[\w\d]+', re.I),
     }
-RE_TITLE = re.compile(r'(.*)\s+\((\d{4})\)$')
-RE_DATE = re.compile(r'.*?\(.*?(\d{4}).*?\).*?')
-RE_LIST_DATE = re.compile(r'\b(\d{4})\b')
+RE_TITLE = re.compile(r'(.*)\s+\((\d\d\d\d)\)$')
+RE_DATE = re.compile(r'\b(\d\d\d\d)\b')
 RE_NAMES_EXCL = re.compile(r'(more credit|full cast)', re.I)
 
 logger = logging.getLogger(__name__)
@@ -35,23 +36,25 @@ class Imdb(Base):
                     text_regex=Title(query).get_search_re(),
                     url_regex=RE_URLS[type])]
 
-    def _get_date(self):
-        res = self.browser.cssselect('title')
-        if res:
-            date = RE_DATE.findall(res[0].text)
-            if date:
-                return int(date[0])
-
     def _get_title_url_info(self, url):
         if not self.browser.open(url):
             return
         info = {'url': url}
 
-        date = self._get_date()
-        if date:
-            info['date'] = date
-        else:
-            logger.debug('failed to get date from %s' % url)
+        headers = self.browser.cssselect('.header')
+        if not headers:
+            logger.error('failed to get title from %s' % url)
+            return
+        titles = headers[0].cssselect('[itemprop="name"]')
+        if not titles:
+            return
+        info['title'] = clean(titles[0].text, 1)
+
+        dates = headers[0].cssselect('.nobr')
+        if dates:
+            res = RE_DATE.search(clean(html.tostring(dates[0]), 1))
+            if res:
+                info['date'] = int(res.group(1))
 
         res = self.browser.cssselect('#img_primary img')
         if res:
@@ -136,7 +139,7 @@ class Imdb(Base):
                 # Get date
                 spans = div.cssselect('span')
                 if spans:
-                    res = RE_LIST_DATE.findall(spans[0].text)
+                    res = RE_DATE.findall(spans[0].text)
                     if res:
                         title['date'] = int(res[0])
 

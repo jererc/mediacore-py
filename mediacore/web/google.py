@@ -1,4 +1,5 @@
 import re
+from urlparse import urlparse
 import logging
 
 from lxml import html
@@ -8,7 +9,7 @@ from filetools.title import clean
 from mediacore.web import Base
 
 
-RE_NB_RESULTS = re.compile(r'(\d+)')
+RE_NB_RESULTS = re.compile(r'([\d,\s]+)')
 RE_URL_SEARCH = re.compile(r'\bsearch\b')
 
 logger = logging.getLogger(__name__)
@@ -30,19 +31,22 @@ class Google(Base):
             else:
                 self.browser.submit_form(self.url, fields={'q': query})
 
-            for div in self.browser.cssselect('div.vsc', []):
-                log = html.tostring(div, pretty_print=True)[:1000]
+            for li in self.browser.cssselect('li.g', []):
+                log = html.tostring(li, pretty_print=True)[:1000]
 
-                links = div.cssselect('a')
+                links = li.cssselect('a')
                 if not links:
                     logger.error('failed to get links from %s' % log)
+                    continue
+                url = links[0].get('href')
+                if not urlparse(url).scheme:
                     continue
                 title = self.get_link_text(html.tostring(links[0]))
                 if not title:
                     continue
                 result = {
                     'title': clean(title),
-                    'url': links[0].get('href'),
+                    'url': url,
                     'page': page,
                     }
                 yield result
@@ -55,7 +59,8 @@ class Google(Base):
         if stat:
             res = RE_NB_RESULTS.findall(clean(stat[0].text))
             if res:
-                return int(res[0])
+                nb = re.sub(r'\D+', '', res[0])
+                return int(nb)
 
     def get_most_popular(self, queries):
         '''Get the most popular query from a list of queries.

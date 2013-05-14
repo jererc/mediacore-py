@@ -12,6 +12,7 @@ DEFAULTS = {
             'misc': '/home/user/misc/new',
             },
         'finished_download': '/home/user/finished',
+        'tmp': '/tmp',
         },
     'search_filters': {
         'anime': {'size_min': 100, 'size_max': 2000, 'exclude_raw': '\\b1080p\\b'},
@@ -23,6 +24,7 @@ DEFAULTS = {
         'tv': {'size_min': 100, 'size_max': 2000, 'include_raw': '\\b([hp]dtv|dsr(ip)?)\\b', 'exclude_raw': '\\b1080p\\b'},
         },
     'media_filters': {
+        'metacritic': {'rating': {'min': 65}},
         'imdb': {'genre': {'exclude': ['horror']}, 'rating': {'min': 6.5}},
         'tvrage': {'genre': {'exclude': ['teens', 'soaps']}, 'classification': {'include': ['scripted']}},
         'sputnikmusic': {'genre': {'exclude': ['hip hop', 'rap']}, 'rating': {'min': 3.5}},
@@ -31,6 +33,7 @@ DEFAULTS = {
     'media_langs': {'movies': ['en'], 'tv': ['en']},
     'subtitles_langs': ['en'],
     'opensubtitles': {'username': '', 'password': ''},
+    'netflix': {'username': '', 'password': ''},
     'sync': {'recurrence': 240, 'retry_delta': 30},
     }
 

@@ -1,10 +1,12 @@
+import os.path
 import re
 import socket
+import cookielib
 from urlparse import urlparse
 from httplib import IncompleteRead, BadStatusLine
 from urllib2 import URLError
-import logging
 import gzip
+import logging
 
 import mechanize
 
@@ -38,7 +40,7 @@ class NoHistory(object):
 class Browser(mechanize.Browser):
 
     def __init__(self, user_agent=USER_AGENT, robust_factory=False,
-                debug_http=False):
+                debug_http=False, cookie_jar=None, cookie_file=None):
         args = {'history': NoHistory()}
         if robust_factory:
             args['factory'] = mechanize.RobustFactory()
@@ -46,6 +48,13 @@ class Browser(mechanize.Browser):
         self.addheaders = [('User-Agent', user_agent)]
         self.set_handle_robots(False)
         self.set_handle_refresh(False)
+
+        if cookie_file and cookie_jar is not None:
+            self.set_cookiejar(cookie_jar)
+            if os.path.exists(cookie_file):
+                cookie_jar.load(cookie_file,
+                        ignore_discard=False, ignore_expires=False)
+
         if debug_http:
             self.set_debug_http(True)
         self.tree = None
@@ -97,7 +106,7 @@ class Browser(mechanize.Browser):
                 url = url.get_full_url()
             logger.error('failed to open %s: %s' % (url, str(e)))
         except Exception:
-            logger.exception('exception')
+            logger.exception('exception (args: %s, %s)' % (args, kwargs))
         self.tree = None
 
     def follow_link(self, *args, **kwargs):
@@ -144,7 +153,7 @@ class Browser(mechanize.Browser):
             try:
                 self[key] = val
             except Exception:
-                logger.error('failed to set form field "%s" for form %s' % (key, str(self)))
+                logger.error('failed to set field "%s" to "%s" for form %s' % (key, val, str(self)))
 
         return self.submit()
 
@@ -179,8 +188,10 @@ class Base(object):
     '''
     ROBUST_FACTORY = False
 
-    def __init__(self, debug_http=False):
+    def __init__(self, cookie_file=None, debug_http=False):
+        self.cookie_jar = cookielib.LWPCookieJar() if cookie_file else None
         self.browser = Browser(robust_factory=self.ROBUST_FACTORY,
+                cookie_jar=self.cookie_jar, cookie_file=cookie_file,
                 debug_http=debug_http)
         self.url = self._get_url()
         self.accessible = True if self.url else False
@@ -195,6 +206,8 @@ class Base(object):
 
     def _is_accessible(self, url):
         if self.browser.open(url):
+            return True
+
             url_ = self.browser.geturl()
             if get_website_name(url_) == get_website_name(url):
                 return True

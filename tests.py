@@ -12,7 +12,7 @@ import logging
 from mock import patch, Mock
 
 from mediacore.utils.utils import parse_magnet_url
-from mediacore.utils.filter import validate_info, validate_extra
+from mediacore.utils.filter import validate_info
 from mediacore.utils.filter import logger as filter_logger
 
 from mediacore.web.google import Google
@@ -25,7 +25,7 @@ from mediacore.web.vcdquality import Vcdquality
 from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.subscene import Subscene
 
-from mediacore.web.search import Result
+from mediacore.web.search import Result, results
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
@@ -242,11 +242,6 @@ class FilterTest(unittest.TestCase):
         filters = {'genres': {'exclude': ['genre3']}}
         self.assertEqual(validate_info(info, filters), True)
 
-    def test_exclude_list_match(self):
-        info = {'genres': ['genre1', 'genre2']}
-        filters = {'genres': {'include': ['genre3', 'genre4']}}
-        self.assertEqual(validate_info(info, filters), True)
-
     def test_exclude_list_single_no_match_list(self):
         info = {'genres': ['genre1', 'genre2']}
         filters = {'genres': {'exclude': ['genre1']}}
@@ -333,7 +328,7 @@ class YoutubeTest(unittest.TestCase):
     def test_results(self):
         res = list(self.obj.results(GENERIC_QUERY))
 
-        self.assertTrue(len(res) > 10, 'failed to find enough results for "%s"' % GENERIC_QUERY)
+        self.assertTrue(len(res) > 5, 'failed to find enough results for "%s" (%s)' % (GENERIC_QUERY, len(res)))
         for r in res:
             for key in ('title', 'duration', 'urls_thumbnails', 'url_watch'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
@@ -364,7 +359,7 @@ class ImdbTest(unittest.TestCase):
         self.assertTrue(res, 'failed to get info for "%s"' % MOVIE)
         self.assertEqual(res.get('date'), MOVIE_YEAR)
         self.assertTrue(MOVIE_DIRECTOR in res.get('director'), 'failed to get director for %s: %s' % (MOVIE, res.get('director')))
-        for key in ('url', 'rating', 'country', 'genre',
+        for key in ('title', 'url', 'rating', 'country', 'genre',
                 'runtime', 'stars', 'url_thumbnail'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, MOVIE))
 
@@ -419,9 +414,9 @@ class TvrageTest(unittest.TestCase):
 
         self.assertTrue(res, 'failed to get info for "%s"' % TVSHOW)
         self.assertEqual(res.get('date'), TVSHOW_YEAR)
-        for key in ('date', 'status', 'classification', 'runtime', 'network',
-                'latest_episode', 'url', 'country', 'date', 'airs',
-                'genre'):
+        for key in ('title', 'url', 'date', 'status', 'classification',
+                'runtime', 'network', 'latest_episode', 'country',
+                'airs', 'genre'):
             self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, TVSHOW))
 
     def test_get_similar(self):
@@ -440,7 +435,7 @@ class TvrageTest(unittest.TestCase):
             if not res:
                 continue
 
-            for key in ('network', 'name', 'url'):
+            for key in ('network', 'title', 'url'):
                 self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
 
             if res.get('season'):
@@ -566,7 +561,7 @@ class VcdqualityTest(unittest.TestCase):
 
     def test_results(self):
         count = 0
-        for res in self.obj.results(pages_max=self.pages_max):
+        for res in self.obj.releases(pages_max=self.pages_max):
             if not res:
                 continue
 
@@ -586,7 +581,7 @@ class VcdqualityTest(unittest.TestCase):
                 ) as (mock_next,):
             mock_next.side_effect = orig
 
-            list(self.obj.results(pages_max=self.pages_max))
+            list(self.obj.releases(pages_max=self.pages_max))
 
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 

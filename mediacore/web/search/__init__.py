@@ -102,7 +102,7 @@ class Result(dotdict):
                     return True
             logger.error('failed to get hash from magnet url "%s"' % self.url)
 
-def _get_plugins():
+def _get_plugins(safe=True):
     '''Find modules filenames sorted by priority.
 
     :return: modules list
@@ -113,6 +113,8 @@ def _get_plugins():
     for filename in os.listdir(path):
         module, ext = os.path.splitext(filename)
         if ext == '.py' and module != '__init__':
+            if safe and module in ('thepiratebay', 'torrentz'):
+                continue
             priority = _get_plugin_priority(module)
             if priority is not None:
                 res.append((priority, module))
@@ -159,7 +161,10 @@ def get_query(query, category=None):
 def results(query, **kwargs):
     '''Iterate over search results.
     '''
-    plugins = kwargs.get('plugins', _get_plugins())
+    plugins = kwargs.get('plugins')
+    if not plugins:
+        plugins = _get_plugins(safe=kwargs.get('safe', True))
+
     for plugin in plugins:
         obj = _get_plugin_object(plugin)
         if not obj:

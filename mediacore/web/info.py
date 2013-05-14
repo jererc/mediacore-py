@@ -3,6 +3,8 @@ from mediacore.web.tvrage import Tvrage
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
 from mediacore.web.youtube import Youtube
+from mediacore.web.metacritic import Metacritic
+from mediacore.web.rottentomatoes import Rottentomatoes
 
 from filetools.title import Title
 
@@ -111,6 +113,18 @@ def similar_music(band, filters=None,
                     continue
                 yield (similar_band, album_info['name'])
 
+def _get_obj_date(obj):
+    date = None
+    if obj.get('release'):
+        date = Title(obj['release']).date
+    if not date:
+        info = obj.get('info', {})
+        if info.get('date'):
+            date = info['date']
+        elif obj.get('date'):
+            date = obj['date'].year
+    return date
+
 def search_extra(obj):
     '''Get an object extra info.
     '''
@@ -126,28 +140,26 @@ def search_extra(obj):
         if category in ('tv', 'anime'):
             name = info.get('name') or obj.get('name')
             set_extra('tvrage', Tvrage().get_info(name))
+            date = extra.get('tvrage', {}).get('date')
         else:
             name = info.get('full_name') or obj.get('name')
+            set_extra('rottentomatoes', Rottentomatoes().get_info(name))
+            date = _get_obj_date(obj)
 
-        date = None
-        if obj.get('release'):
-            date = Title(obj['release']).date
-        if not date:
-            if info.get('date'):
-                date = info['date']
-            elif obj.get('date'):
-                date = obj['date'].year
-
+        set_extra('metacritic', Metacritic().get_info(name,
+                category=category))
         set_extra('imdb', Imdb().get_info(name, year=date))
-        date = extra.get('tvrage', {}).get('date') or extra['imdb'].get('date') or date
+        date = extra.get('imdb', {}).get('date') or date
         set_extra('youtube', Youtube().get_trailer(name, date=date))
 
     elif category == 'music':
         artist = info.get('artist') or obj.get('artist') or obj.get('name')
         album = info.get('album') or obj.get('album')
-
-        set_extra('sputnikmusic', Sputnikmusic().get_info(artist, album))
-        set_extra('lastfm', Lastfm().get_info(artist, album))
-        set_extra('youtube', Youtube().get_track(artist, album))
+        if artist and album:
+            set_extra('metacritic', Metacritic().get_info(album,
+                    category=category, artist=artist))
+            set_extra('sputnikmusic', Sputnikmusic().get_info(artist, album))
+            set_extra('lastfm', Lastfm().get_info(artist, album))
+            set_extra('youtube', Youtube().get_track(artist, album))
 
     return extra

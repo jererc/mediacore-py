@@ -58,11 +58,11 @@ def validate_extra(extra, filters):
 
     processed = None
     for key, info in extra.items():
-        if key not in filters:
+        if key not in filters or not info:
             continue
 
         processed = True
-        res = validate_info(info or {}, filters[key] or {})
+        res = validate_info(info, filters[key] or {})
         if res is None:
             return None
         elif not res:

@@ -111,7 +111,6 @@ class Subscene(Base):
         if not res:
             return
         filename = res[0]
-
         if response.status_code == requests.codes.ok:
             file = os.path.join(dst, filename)
             with open(file, 'wb') as fd:

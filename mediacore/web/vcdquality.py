@@ -26,7 +26,7 @@ class Vcdquality(Base):
                 text_regex=re.compile(r'^%s$' % page),
                 url_regex=re.compile(r'browse'))
 
-    def results(self, pages_max=1):
+    def releases(self, pages_max=1):
         now = datetime.utcnow()
         for page in range(1, pages_max + 1):
             if page > 1:

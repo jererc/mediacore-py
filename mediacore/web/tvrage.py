@@ -50,6 +50,12 @@ class Tvrage(Base):
 
         info = {'url': self.browser.geturl()}
 
+        titles = self.browser.cssselect('.content_title a')
+        if not titles:
+            logger.error('failed to get title from %s' % info['url'])
+            return
+        info['title'] = clean(titles[0].text, 1)
+
         # Episode info
         for h2 in self.browser.cssselect('div.grid_7_5 h2', []):
             title = h2.text.lower().split(':')[0]
@@ -159,12 +165,12 @@ class Tvrage(Base):
 
             try:
                 link = tr[1].cssselect('a')[0]
-                info['name'] = clean(link.text, 1)
+                info['title'] = clean(link.text, 1)
                 info['url'] = urljoin(self.url, link.get('href'))
             except IndexError:
-                info['name'] = clean(tr[1][0][0].text, 1)
+                info['title'] = clean(tr[1][0][0].text, 1)
             except Exception:
-                logger.error('failed to get name from %s' % log)
+                logger.error('failed to get title from %s' % log)
                 continue
 
             try:

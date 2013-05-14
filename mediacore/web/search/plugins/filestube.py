@@ -10,7 +10,7 @@ from mediacore.web import Base, Browser
 from mediacore.web.search import Result, SearchError
 
 
-PRIORITY = 2
+PRIORITY = 1
 RE_ADVANCED_SEARCH = re.compile(r'\badvanced search\b', re.I)
 SUPPORTED_SITES = ['mediafire']
 SORT_DEF = {
@@ -19,6 +19,9 @@ SORT_DEF = {
     }
 
 logger = logging.getLogger(__name__)
+
+
+class FilestubeException(Exception): pass
 
 
 class Filestube(Base):
@@ -43,7 +46,6 @@ class Filestube(Base):
         size = 0
         for tag in browser.cssselect('#js_files_list tr .tright', []):
             size += get_size(tag.text) or 0
-
         return {
             'urls': urls,
             'size': size,
@@ -84,42 +86,43 @@ class Filestube(Base):
                 info = self._get_download_info(url)
                 if info:
                     result = Result()
+                    result.type = 'filestube'
                     result.title = clean(self.get_link_text(html.tostring(links[0])))
                     result.url = info['urls']
-                    result.type = 'filestube'
                     result.size = info['size']
                     if not result.validate(**kwargs):
                         continue
                     yield result
 
-    def _get_download_url(self, url):
-        netloc_parts = urlparse(url).netloc.split('.')
-        browser = Browser()
 
-        if 'mediafire' in netloc_parts:
-            browser.open(url)
-            if browser.cssselect('#form_captcha'):
-                logger.error('failed to get url from %s: captcha' % url)
-                return
-            tags = browser.cssselect('.error_msg_title')
-            if tags:
-                logger.error('failed to get download url from %s: %s' % (url, tags[0].text))
-                return
+def _get_download_url(url):
+    browser = Browser()
+    netloc_parts = urlparse(url).netloc.split('.')
 
-            tags = browser.cssselect('.download_link')
-            if tags:
-                data_ = html.tostring(tags[0])
-                res = re.compile(r'"(http://.*?)"').findall(data_)
-                if res:
-                    return res[0]
+    if 'mediafire' in netloc_parts:
+        browser.open(url)
+        if browser.cssselect('#form_captcha'):
+            logger.error('failed to get url from %s: captcha' % url)
+            return
+        tags = browser.cssselect('.error_msg_title')
+        if tags:
+            logger.error('failed to get download url from %s: %s' % (url, tags[0].text))
+            return
 
-        logger.error('failed to get download url from %s' % url)
+        tags = browser.cssselect('.download_link')
+        if tags:
+            data_ = html.tostring(tags[0])
+            res = re.compile(r'"(http://.*?)"').findall(data_)
+            if res:
+                return res[0]
 
-    def get_download_urls(self, urls):
-        res = []
-        for url in urls:
-            url_ = self._get_download_url(url)
-            if not url_:
-                return
-            res.append(url_)
-        return res
+    raise FilestubeException('failed to get download url from %s' % url)
+
+def get_download_urls(url):
+    if not isinstance(url, (list, tuple)):
+        url = [url]
+
+    res = []
+    for url_ in url:
+        res.append(_get_download_url(url_))
+    return res

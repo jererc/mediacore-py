@@ -139,6 +139,8 @@ class Lastfm(Base):
 
     @timeout(120)
     def get_info(self, artist, album=None, pages_max=MAX_ALBUMS_PAGES):
+        if not self.accessible:
+            return
         info = self._get_info(artist, pages_max)
         if not album:
             return info
@@ -183,5 +185,9 @@ class Lastfm(Base):
     def get_similar(self, query, pages_max=MAX_SIMILAR_PAGES):
         '''Get similar artists.
         '''
+        if not self.accessible:
+            return []
         url = self._get_similar_url(query)
+        if not url:
+            return []
         return list(self._similar_artists(url, pages_max))

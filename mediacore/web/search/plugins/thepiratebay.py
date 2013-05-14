@@ -10,7 +10,7 @@ from mediacore.web import Base
 from mediacore.web.search import Result, SearchError
 
 
-PRIORITY = 0
+PRIORITY = 2
 CAT_DEF = {
     'anime': 'video',
     'apps': 'apps',
@@ -33,9 +33,8 @@ logger = logging.getLogger(__name__)
 
 class Thepiratebay(Base):
     URL = [
-        'https://piratereverse.info',
+        'http://thepiratebay.sx',
         'http://pirateproxy.net',
-        'http://livepirate.com',
         ]
 
     def _get_date(self, val):

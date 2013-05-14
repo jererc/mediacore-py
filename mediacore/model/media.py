@@ -1,5 +1,6 @@
 import os.path
 from datetime import datetime
+import logging
 
 from mediacore.utils.db import Model
 
@@ -7,17 +8,25 @@ from filetools.media import files, get_file, get_mtime
 from filetools.title import Title
 
 
-TYPES = ['video', 'audio']
+TYPES_DEF = {
+    'movies': 'video',
+    'tv': 'video',
+    'anime': 'video',
+    'music': 'audio',
+    }
+
+logger = logging.getLogger(__name__)
 
 
 class Media(Model):
     COL = 'media'
 
     @classmethod
-    def add(cls, file):
+    def add_file(cls, file):
         '''Add a file or path.
         '''
-        for file_ in files(file, types=TYPES):
+        types = list(set(TYPES_DEF.values()))
+        for file_ in files(file, types=types):
             info = file_.get_file_info()
             name = info.get('display_name')
             if not name:
@@ -43,17 +52,55 @@ class Media(Model):
                 cls.insert(doc, safe=True)
 
     @classmethod
+    def add_url(cls, url, name, category, **kwargs):
+        '''Add a URL.
+        '''
+        type = TYPES_DEF.get(category)
+        if not type:
+            logger.error('invalid category "%s"' % category)
+            return
+
+        info = {}
+
+        title = Title(name)
+        for key in ('full_name', 'display_name', 'name',
+                'season', 'episode', 'date', 'rip', 'langs'):
+            info[key] = getattr(title, key)
+        info['subtype'] = category
+        info.update(kwargs)
+        name = info.get('display_name')
+        if not name:
+            return
+
+        doc = {
+            'name': name,
+            'type': type,
+            'info': info,
+            }
+        res = cls.update({'$or': [
+                {'urls': url},
+                {'name': name},
+                ]},
+                {
+                '$set': doc,
+                '$addToSet': {'urls': url},
+                }, safe=True)
+        if not res['updatedExisting']:
+            doc['urls'] = [url]
+            doc['created'] = datetime.utcnow()
+            doc['date'] = datetime.utcnow()
+            cls.insert(doc, safe=True)
+
+    @classmethod
     def get_bases(cls, id, dirs_only=False):
         '''Get the Media base directories or files.
         '''
-        media = cls.get(id)
-        if media:
-            files = dict([(os.path.dirname(f), f) for f in media['files'] if os.path.exists(f)]).values()
-            res = [get_file(f).get_base() for f in files]
-            if dirs_only:
-                res = [f for f in res if os.path.isdir(f)]
-            if res:
-                return list(set(res))
+        media = cls.get(id) or {}
+        files = media.get('files', [])
+        res = list(set([get_file(f).get_base() for f in files]))
+        if dirs_only:
+            return [f for f in res if os.path.isdir(f)]
+        return res
 
     @classmethod
     def search(cls, name, category, **kwargs):
@@ -83,10 +130,13 @@ class Media(Model):
 
     @classmethod
     def search_files(cls, *args, **kwargs):
-        files = []
-        for res in cls.search(*args, **kwargs):
-            files.extend(res['files'])
-        return files
+        '''Get the media files and URLs matching the parameters.
+        '''
+        res = []
+        for media in cls.search(*args, **kwargs):
+            res.extend(media.get('files', []))
+            res.extend(media.get('urls', []))
+        return res
 
     @classmethod
     def get_search(cls, media):

@@ -12,7 +12,7 @@ from mediacore.web.search import Result, SearchError
 from mediacore.utils.utils import parse_magnet_url, RE_URL_MAGNET
 
 
-PRIORITY = 1
+PRIORITY = 3
 CAT_DEF = {
     'anime': re.compile(r'\banime\b', re.I),
     'apps': re.compile(r'\bapplications?\b', re.I),
@@ -27,7 +27,7 @@ RE_URL_SORT = {
     'popularity': re.compile(r'^peers$', re.I),
     }
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
-RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match\b', re.I)
+RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match', re.I)
 
 logger = logging.getLogger(__name__)
 
