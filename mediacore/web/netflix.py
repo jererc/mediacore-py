@@ -53,8 +53,7 @@ class Netflix(Base):
             logger.error('failed to login as %s' % username)
             return False
 
-        self.cookie_jar.save(self.cookie_file,
-                ignore_discard=False, ignore_expires=False)
+        self.save_cookie(self.cookie_file)
         return True
 
     @timeout(120)

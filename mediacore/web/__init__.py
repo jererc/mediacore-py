@@ -213,6 +213,11 @@ class Base(object):
                 return True
             logger.info('%s is redirected to %s' % (url, url_))
 
+    def save_cookie(self, cookie_file):
+        if self.cookie_jar:
+            self.cookie_jar.save(cookie_file,
+                    ignore_discard=False, ignore_expires=False)
+
     def get_link_text(self, val):
         res = RE_LINK_TITLE.search(val)
         if res:

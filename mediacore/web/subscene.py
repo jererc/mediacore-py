@@ -7,11 +7,10 @@ logging.getLogger('requests').setLevel(logging.ERROR)
 import requests
 
 from filetools.title import Title, clean
-from filetools.media import files, clean_file, move_file
+from filetools.media import files, clean_file, move_file, mkdtemp
 from filetools.download import unpack_download
 
 from mediacore.web import Base, RealBrowser
-from mediacore.utils.utils import mkdtemp
 
 
 DEFAULT_LANG = 'english'

@@ -47,6 +47,8 @@ class Binsearch(Base):
                     raise SearchError('no data')
             else:
                 tables = self.browser.cssselect('table')
+                if not tables:
+                    continue
                 links = tables[-1].cssselect('a')
                 if not links:
                     break

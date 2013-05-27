@@ -764,7 +764,7 @@ class TorrentzTest(unittest.TestCase):
     def test_results(self):
         count = 0
         seeds_count = 0
-        for res in self.obj.results(GENERIC_QUERY):
+        for res in self.obj.results(TVSHOW):
             if not res:
                 continue
 
@@ -785,7 +785,7 @@ class TorrentzTest(unittest.TestCase):
         for sort in ('date',):  # we do not test popularity since torrentz does not really sort by seeds
             count = 0
             val_prev = None
-            for res in self.obj.results(GENERIC_QUERY, sort=sort):
+            for res in self.obj.results(TVSHOW, sort=sort):
                 if not res:
                     continue
 
@@ -816,7 +816,7 @@ class TorrentzTest(unittest.TestCase):
             mock_next.side_effect = orig
             mock_getlink.return_value = None
 
-            list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+            list(self.obj.results(TVSHOW, pages_max=self.pages_max))
 
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
