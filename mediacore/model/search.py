@@ -6,7 +6,7 @@ from mediacore.web.info import (get_movies_titles,
         get_music_albums, InfoError)
 
 
-EXTRA_KEYS = ['album', 'season', 'episode']
+EXTRA_KEYS = ['album', 'season', 'episode', 'safe']
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,10 @@ class Search(Model):
             'category': category.lower(),
             'mode': mode.lower(),
             'langs': langs or [],
+            'safe': True,
             }
         for key in EXTRA_KEYS:
-            if kwargs.get(key):
+            if key in kwargs:
                 doc[key] = kwargs[key]
 
         if not cls.find_one(doc):

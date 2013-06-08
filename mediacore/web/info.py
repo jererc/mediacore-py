@@ -154,12 +154,13 @@ def search_extra(obj):
 
     elif category == 'music':
         artist = info.get('artist') or obj.get('artist') or obj.get('name')
-        album = info.get('album') or obj.get('album')
-        if artist and album:
-            set_extra('metacritic', Metacritic().get_info(album,
-                    category=category, artist=artist))
+        if artist:
+            album = info.get('album') or obj.get('album')
             set_extra('sputnikmusic', Sputnikmusic().get_info(artist, album))
             set_extra('lastfm', Lastfm().get_info(artist, album))
             set_extra('youtube', Youtube().get_track(artist, album))
+            if album:
+                set_extra('metacritic', Metacritic().get_info(album,
+                        category=category, artist=artist))
 
     return extra
