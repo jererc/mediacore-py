@@ -10,8 +10,9 @@ class Release(Model):
         res = {
             'name': release['name'],
             'category': category,
-            'release_id': release['_id'],
             }
+        if 'source' in release:
+            res['source'] = release['source']
         if category == 'tv':
             res['mode'] = 'inc'
             res['season'] = 1

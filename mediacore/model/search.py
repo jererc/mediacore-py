@@ -6,7 +6,7 @@ from mediacore.web.info import (get_movies_titles,
         get_music_albums, InfoError)
 
 
-EXTRA_KEYS = ['album', 'season', 'episode', 'safe']
+EXTRA_KEYS = ['album', 'season', 'episode']
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +15,13 @@ class Search(Model):
     COL = 'searches'
 
     @classmethod
-    def add(cls, name, category, mode='once', langs=None, **kwargs):
+    def add(cls, name, category, mode='once', langs=None, safe=True,
+            **kwargs):
         doc = {
             'name': name.lower(),
             'category': category.lower(),
             'mode': mode.lower(),
             'langs': langs or [],
-            'safe': True,
             }
         for key in EXTRA_KEYS:
             if key in kwargs:
@@ -30,6 +30,7 @@ class Search(Model):
         if not cls.find_one(doc):
             doc.update(kwargs)
             doc['created'] = datetime.utcnow()
+            doc['safe'] = safe
             return cls.insert(doc, safe=True)
 
     @classmethod
@@ -54,8 +55,9 @@ class Search(Model):
             'category': search['category'],
             'mode': search['mode'],
             'langs': search.get('langs') or [],
+            'safe': search.get('safe', True),
             }
-        for key in EXTRA_KEYS:
+        for key in EXTRA_KEYS + ['source', 'similar_name']:
             if key in search:
                 res[key] = search[key]
 
