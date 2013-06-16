@@ -45,29 +45,19 @@ class Opensubtitles(Base):
         return True
 
     def _get_subtitles(self, url):
-        info = []
-
+        urls = []
         if self.browser.open(url):
             urls = []
-            for link in self.browser.cssselect('a[title="Download"]', []):
-                url = urljoin(self.url, link.get('href'))
-                if url in urls:
-                    continue
-                filename = link.text
-                if not filename:
-                    continue
-                urls.append(url)
-                info.append({
-                    'filename': filename,
-                    'url': url,
-                    })
+            for link in self.browser.cssselect('a[id="free_btn"]', []):
+                url_ = urljoin(self.url, link.get('href'))
+                if url_ not in urls:
+                    urls.append(url_)
 
-        if not info:
-            if self.browser.tree is not None \
-                    and not RE_NO_RESULT.search(self.browser.tree.text_content()):
-                logger.error('failed to find subtitles files at %s' % url)
+        if not urls and self.browser.tree is not None \
+                and not RE_NO_RESULT.search(self.browser.tree.text_content()):
+            logger.error('failed to find subtitles files at %s' % url)
 
-        return info
+        return urls
 
     def _get_date(self, title):
         res = RE_DATE.findall(title)

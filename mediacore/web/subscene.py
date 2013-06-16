@@ -51,11 +51,7 @@ class Subscene(Base):
             title = clean(spans[1].text)
             if re_sub and not re_sub.search(title):
                 continue
-            url_ = urljoin(self.url, links[0].get('href'))
-            yield {
-                'filename': title,
-                'url': url_,
-                }
+            yield urljoin(self.url, links[0].get('href'))
 
         uls = self.browser.cssselect('.box ul')
         if uls:

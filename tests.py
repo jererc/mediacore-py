@@ -600,8 +600,7 @@ class OpensubtitlesTest(unittest.TestCase):
     def test_results_movie(self):
         count = 0
         for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
-            for key in ('filename', 'url'):
-                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
+            self.assertTrue(res, 'failed to get subtitles url')
 
             count += 1
             if count == self.max_results:
@@ -613,8 +612,7 @@ class OpensubtitlesTest(unittest.TestCase):
         count = 0
         for res in self.obj.results(TVSHOW,
                 TVSHOW_SEASON, TVSHOW_EPISODE, lang=OPENSUBTITLES_LANG):
-            for key in ('filename', 'url'):
-                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
+            self.assertTrue(res, 'failed to get subtitles url')
 
             count += 1
             if count == self.max_results:
@@ -629,9 +627,9 @@ class OpensubtitlesTest(unittest.TestCase):
         for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
             with mkdtemp() as temp_dir:
                 try:
-                    downloaded = self.obj.download(res['url'],
-                            os.path.join(temp_dir, res['filename']), temp_dir)
-                    self.assertTrue(downloaded, 'failed to download subtitles "%s" (%s)' % (res['filename'], res['url']))
+                    downloaded = self.obj.download(res,
+                            os.path.join(temp_dir, 'temp-sub-file'), temp_dir)
+                    self.assertTrue(downloaded, 'failed to download subtitles from %s' % res)
                     result = True
                 except DownloadQuotaReached:
                     pass
@@ -650,8 +648,7 @@ class SubsceneTest(unittest.TestCase):
     def test_results_movie(self):
         count = 0
         for res in self.obj.results(MOVIE, lang=SUBSCENE_LANG):
-            for key in ('filename', 'url'):
-                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
+            self.assertTrue(res, 'failed to get subtitles url')
 
             count += 1
             if count == self.max_results:
@@ -663,8 +660,7 @@ class SubsceneTest(unittest.TestCase):
         count = 0
         for res in self.obj.results(TVSHOW,
                 TVSHOW_SEASON, TVSHOW_EPISODE, lang=SUBSCENE_LANG):
-            for key in ('filename', 'url'):
-                self.assertTrue(res.get(key), 'failed to get %s from subtitles %s' % (key, res))
+            self.assertTrue(res, 'failed to get subtitles url')
 
             count += 1
             if count == self.max_results:
@@ -676,9 +672,9 @@ class SubsceneTest(unittest.TestCase):
         result = False
         for res in self.obj.results(MOVIE, lang=SUBSCENE_LANG):
             with mkdtemp() as temp_dir:
-                downloaded = self.obj.download(res['url'],
-                        os.path.join(temp_dir, res['filename']), temp_dir)
-                self.assertTrue(downloaded, 'failed to download subtitles "%s" (%s)' % (res['filename'], res['url']))
+                downloaded = self.obj.download(res,
+                        os.path.join(temp_dir, 'temp-sub-file'), temp_dir)
+                self.assertTrue(downloaded, 'failed to download subtitles from %s' % res)
                 result = True
             break
 

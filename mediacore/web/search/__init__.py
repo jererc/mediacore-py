@@ -22,10 +22,7 @@ class SearchError(Exception): pass
 class Result(dotdict):
 
     def __init__(self):
-        init = {
-            'created': datetime.utcnow(),
-            'processed': False,
-            }
+        init = {'safe': True, 'auto': True}
         super(Result, self).__init__(init)
 
     def _get_regex(self, val):
@@ -102,25 +99,6 @@ class Result(dotdict):
                     return True
             logger.error('failed to get hash from magnet url "%s"' % self.url)
 
-def _get_plugins(safe=True):
-    '''Find modules filenames sorted by priority.
-
-    :return: modules list
-    '''
-    res = []
-
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), PLUGINS_DIR)
-    for filename in os.listdir(path):
-        module, ext = os.path.splitext(filename)
-        if ext == '.py' and module != '__init__':
-            if safe and module in ('thepiratebay', 'torrentz'):
-                continue
-            priority = _get_plugin_priority(module)
-            if priority is not None:
-                res.append((priority, module))
-
-    return [name for i, name in sorted(res)]
-
 def _get_module(plugin):
     try:
         return __import__('%s.%s' % (PLUGINS_DIR, plugin), globals(), locals(), [plugin], -1)
@@ -132,9 +110,20 @@ def _get_plugin_priority(plugin):
     if module_:
         return getattr(module_, 'PRIORITY', 0)
 
+def _get_plugins():
+    res = []
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), PLUGINS_DIR)
+    for filename in os.listdir(path):
+        module, ext = os.path.splitext(filename)
+        if ext != '.py' or module == '__init__':
+            continue
+        priority = _get_plugin_priority(module)
+        if priority is not None:
+            res.append((priority, module))
+
+    return [name for i, name in sorted(res)]
+
 def _get_plugin_object(plugin):
-    '''Get a search plugin object.
-    '''
     module_ = _get_module(plugin)
     if module_:
         try:
@@ -146,8 +135,6 @@ def _get_plugin_object(plugin):
             return object_
 
 def get_query(query, category=None):
-    '''Get a clean query.
-    '''
     query = clean(query, 1)
     if category == 'tv':
         query = Title(query).name
@@ -158,12 +145,9 @@ def get_query(query, category=None):
     query = re.sub(r'^the\s+|^[\W_]+|[\W_]+$', '', query)
     return query
 
-def results(query, **kwargs):
-    '''Iterate over search results.
-    '''
-    plugins = kwargs.get('plugins')
+def results(query, plugins=None, **kwargs):
     if not plugins:
-        plugins = _get_plugins(safe=kwargs.get('safe', True))
+        plugins = _get_plugins()
 
     for plugin in plugins:
         obj = _get_plugin_object(plugin)

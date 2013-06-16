@@ -206,12 +206,11 @@ class Base(object):
 
     def _is_accessible(self, url):
         if self.browser.open(url):
+            # url_ = self.browser.geturl()
+            # if get_website_name(url_) == get_website_name(url):
+            #     return True
+            # logger.info('%s is redirected to %s' % (url, url_))
             return True
-
-            url_ = self.browser.geturl()
-            if get_website_name(url_) == get_website_name(url):
-                return True
-            logger.info('%s is redirected to %s' % (url, url_))
 
     def save_cookie(self, cookie_file):
         if self.cookie_jar:

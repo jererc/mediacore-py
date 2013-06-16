@@ -12,7 +12,6 @@ from mediacore.web.search import Result, SearchError
 
 PRIORITY = 1
 RE_ADVANCED_SEARCH = re.compile(r'\badvanced search\b', re.I)
-SUPPORTED_SITES = ['mediafire']
 SORT_DEF = {
     'date': ['dd'],
     'popularity': ['pd'],
@@ -27,12 +26,6 @@ class FilestubeError(Exception): pass
 class Filestube(Base):
     URL = 'http://www.filestube.com/'
 
-    def _get_site(self, url):
-        netloc_parts = urlparse(url).netloc.lower().split('.')
-        for site in SUPPORTED_SITES:
-            if site in netloc_parts:
-                return site
-
     def _get_download_info(self, url):
         browser = Browser()
         browser.open(url)
@@ -40,16 +33,11 @@ class Filestube(Base):
         if not tags or not tags[0].text:
             return
         urls = tags[0].text.splitlines()
-        if not self._get_site(urls[0]):
-            return
 
         size = 0
         for tag in browser.cssselect('#js_files_list tr .tright', []):
             size += get_size(tag.text) or 0
-        return {
-            'urls': urls,
-            'size': size,
-            }
+        return {'urls': urls, 'size': size}
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
         if not self.url:
@@ -86,6 +74,7 @@ class Filestube(Base):
                 info = self._get_download_info(url)
                 if info:
                     result = Result()
+                    result.auto = False
                     result.type = 'filestube'
                     result.title = clean(self.get_link_text(html.tostring(links[0])))
                     result.url = info['urls']

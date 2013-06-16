@@ -105,6 +105,7 @@ class Thepiratebay(Base):
                 log = html.tostring(tr, pretty_print=True)[:1000]
 
                 result = Result()
+                result.safe = False
                 try:
                     result.category = tr[0].cssselect('a')[0].text.lower()
                 except Exception:
