@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 from urlparse import urljoin
 import logging
 
@@ -21,6 +22,7 @@ RE_TITLE = re.compile(r'"([^"]+)"', re.I)
 RE_SIZE = re.compile(r'\bsize\s*:\s*([^,]+)\s*,', re.I)
 RE_PARTS = re.compile(r'\bparts\s+available\s*:\s*(\d+)\s*/\s*(\d+)', re.I)
 RE_FILENAME = re.compile(r'filename="(.*)";?', re.I)
+RE_DATE = re.compile(r'(\d+)(\w)')
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +33,25 @@ class BinsearchError(Exception): pass
 class Binsearch(Base):
     URL = 'http://www.binsearch.info'
 
+    def _get_date(self, age):
+        res = RE_DATE.search(age)
+        if res:
+            val = int(res.group(1))
+            unit = res.group(2).lower()
+            if unit == 'm':
+                return datetime.utcnow() - timedelta(minutes=val)
+            elif unit == 'h':
+                return datetime.utcnow() - timedelta(hours=val)
+            elif unit == 'd':
+                return datetime.utcnow() - timedelta(days=val)
+
+        logger.error('failed to get date from "%s"' % age)
+        return datetime.utcnow() - timedelta(days=1100)
+
     def results(self, query, sort='date', pages_max=1, **kwargs):
         if not self.url:
             raise SearchError('no data')
 
-        # links = list(self.browser.links(text_regex=RE_ADVANCED_SEARCH))
-        # if not links:
-        #     raise SearchError('failed to find advanced search link')
-        # url = links[0].absolute_url
         url = None
 
         for i in range(pages_max):
@@ -76,6 +89,8 @@ class Binsearch(Base):
                 if res:
                     title = res[0]
                 result.title = clean(title)
+
+                result.date = self._get_date(tr[-1].text)
 
                 refs = tr.cssselect('input[type="checkbox"]')
                 if not refs:

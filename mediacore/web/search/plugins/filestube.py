@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 from urlparse import urlparse, urljoin
 import logging
 
@@ -12,6 +13,8 @@ from mediacore.web.search import Result, SearchError
 
 PRIORITY = 1
 RE_ADVANCED_SEARCH = re.compile(r'\badvanced search\b', re.I)
+RE_ADDED = re.compile(r'\badded\b', re.I)
+RE_DATE = re.compile(r'(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)')
 SORT_DEF = {
     'date': ['dd'],
     'popularity': ['pd'],
@@ -37,7 +40,17 @@ class Filestube(Base):
         size = 0
         for tag in browser.cssselect('#js_files_list tr .tright', []):
             size += get_size(tag.text) or 0
-        return {'urls': urls, 'size': size}
+
+        date = None
+        for tag in browser.cssselect('.file_details_title', []):
+            res = RE_DATE.search(html.tostring(tag))
+            if res:
+                date = datetime.strptime(res.group(1), '%Y-%m-%d %H:%M:%S')
+                break
+        if not date:
+            logger.error('failed to get date from %s' % url)
+
+        return {'urls': urls, 'size': size, 'date': date}
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
         if not self.url:
@@ -79,6 +92,7 @@ class Filestube(Base):
                     result.title = clean(self.get_link_text(html.tostring(links[0])))
                     result.url = info['urls']
                     result.size = info['size']
+                    result.date = info['date']
                     if not result.validate(**kwargs):
                         continue
                     yield result
