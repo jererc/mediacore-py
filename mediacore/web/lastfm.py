@@ -1,5 +1,5 @@
 import re
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
 import logging
 
 from lxml import html
@@ -19,6 +19,7 @@ RE_ALBUMS = re.compile(r'top albums', re.I)
 RE_SIMILAR = re.compile(r'similar artists', re.I)
 RE_DATE_ALBUM = re.compile(r'^\b(\d{4})\b')
 RE_MORE_TAGS = re.compile(r'more tags', re.I)
+RE_THUMBNAIL_UNKNOWN = re.compile(r'\bdefault_album_', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,9 @@ class Lastfm(Base):
 
                 url_thumbnails = tag.cssselect('.album-item-cover img')
                 if url_thumbnails:
-                    info_album['url_thumbnail'] = url_thumbnails[0].get('src')
+                    url_ = url_thumbnails[0].get('src')
+                    if not RE_THUMBNAIL_UNKNOWN.search(urlparse(url_).path):
+                        info_album['url_thumbnail'] = url_
                 else:
                     logger.error('failed to get album thumbnail url from %s' % log)
 
