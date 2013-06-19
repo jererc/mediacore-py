@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
 import logging
 
 from lxml import html
@@ -16,6 +16,7 @@ RE_URL_BAND = re.compile(r'/bands/', re.I)
 RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
 RE_SUGGESTIONS = re.compile(r'search results:', re.I)
+RE_THUMBNAIL_UNKNOWN = re.compile(r'\bunknown\b', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,9 @@ class Sputnikmusic(Base):
                 except Exception:
                     info_album['date'] = None
                 try:
-                    info_album['url_thumbnail'] = urljoin(self.url, tds[0][0][0].get('src'))
+                    url_ = urljoin(self.url, tds[0][0][0].get('src'))
+                    if not RE_THUMBNAIL_UNKNOWN.search(urlparse(url_).path):
+                        info_album['url_thumbnail'] = url_
                 except Exception:
                     logger.error('failed to get cover url from %s' % log)
 
