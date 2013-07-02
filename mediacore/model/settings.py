@@ -34,6 +34,7 @@ DEFAULTS = {
     'subtitles_langs': ['en'],
     'opensubtitles': {'username': '', 'password': ''},
     'netflix': {'username': '', 'password': ''},
+    'filestube': {'api_key': ''},
     'sync': {'recurrence': 240, 'retry_delta': 30},
     }
 

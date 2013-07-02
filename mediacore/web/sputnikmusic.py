@@ -17,6 +17,7 @@ RE_DATE_ALBUM = re.compile(r'((\d{2})/(\d{2})/)?(\d{4})\s*$')
 RE_DATE_REVIEW = re.compile(r'(\d{4})-(\d{2})-(\d{2})\s.*$')
 RE_SUGGESTIONS = re.compile(r'search results:', re.I)
 RE_THUMBNAIL_UNKNOWN = re.compile(r'\bunknown\b', re.I)
+RE_REVIEWS = re.compile(r'staff reviews', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,15 @@ class Sputnikmusic(Base):
 
         # Get band info
         band_info = self.browser.cssselect('table.bandbox td')
+        if not band_info:
+            return
         try:
             info['name'] = clean(band_info[0][0][0].text, 1)
         except Exception:
             logger.error('failed to get band name from %s' % url)
-        try:
-            info['genre'] = [clean(t.text, 1) for t in band_info[0][1] if t.text]
-        except Exception:
-            logger.error('failed to get band genre from %s' % url)
+            return
+        tags = band_info[0].cssselect('.tags a')
+        info['genre'] = [clean(t.text, 1) for t in tags if t.text]
 
         for table in self.browser.cssselect('table.plaincontentbox', []):
             # Get albums
@@ -140,11 +142,13 @@ class Sputnikmusic(Base):
 
     def _get_reviews_url(self):
         for link in self.browser.cssselect('li a', []):
-            if link.text and 'reviews' in link.text.lower():
+            if link.text and RE_REVIEWS.search(link.text):
                 return urljoin(self.url, link.get('href'))
 
     @timeout(120)
     def reviews(self):
+        if not self.url:
+            return
         url = self._get_reviews_url()
         if not url:
             logger.error('failed to get reviews url at %s' % self.url)

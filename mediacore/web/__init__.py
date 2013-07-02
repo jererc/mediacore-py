@@ -28,7 +28,7 @@ from filetools.title import clean
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
 RE_ENCODING = re.compile(r'.*charset=([^\s]+)', re.I)
-TIMEOUT_REQUEST = 20
+REQUEST_TIMEOUT = 30
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +87,12 @@ class Browser(mechanize.Browser):
         except Exception, e:
             logger.error('failed to parse "%s": %s' % (data, str(e)))
 
-    @timeout(TIMEOUT_REQUEST)
+    @timeout(REQUEST_TIMEOUT)
     def _mech_open_wrapper(self, *args, **kwargs):
         return mechanize.Browser._mech_open(self, *args, **kwargs)
 
     def _mech_open(self, *args, **kwargs):
-        kwargs['timeout'] = TIMEOUT_REQUEST
+        kwargs['timeout'] = REQUEST_TIMEOUT
         try:
             res = self._mech_open_wrapper(*args, **kwargs)
             res = self._handle_response(res)
@@ -133,13 +133,7 @@ class Browser(mechanize.Browser):
             for form in self.forms():
                 logger.info('form: %s' % str(form))
 
-        if name:
-            form_info = {'name': name}
-        elif index:
-            form_info = {'nr': index}
-        else:
-            form_info = {'nr': 0}
-
+        form_info = {'name': name} if name else {'nr': index or 0}
         try:
             self.select_form(**form_info)
         except mechanize.FormNotFoundError:
@@ -171,7 +165,7 @@ class RealBrowser(webdriver.Firefox):
         self.quit()
         self._abstract_display.stop()
 
-    @timeout(TIMEOUT_REQUEST)
+    @timeout(REQUEST_TIMEOUT)
     def _open(self, url):
         self.get(url)
 

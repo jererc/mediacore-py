@@ -27,7 +27,8 @@ RE_URL_SORT = {
     'popularity': re.compile(r'^peers$', re.I),
     }
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
-RE_APPROXIMATE_MATCH = re.compile(r'\bapproximate\s+match', re.I)
+RE_SPONSORED_LINK = re.compile(r'sponsored link', re.I)
+RE_APPROXIMATE_MATCH = re.compile(r'approximate match', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,8 @@ class Torrentz(Base):
 
         for result in results:
             # Skip sponsored links
-            tags = result.cssselect('dd')
-            if tags and 'sponsored link' in clean(html.tostring(tags[0]), 1):
+            res = result.cssselect('dd')
+            if res and RE_SPONSORED_LINK.search(html.tostring(res[0])):
                 continue
 
             links = result.cssselect('dt a')
@@ -127,15 +128,13 @@ class Torrentz(Base):
 
             # Skip approximate matches
             res = self.browser.cssselect('div.results h3')
-            if not res:
-                logger.error('failed to check approximate matches at %s' % self.browser.geturl())
-            elif RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
+            if res and RE_APPROXIMATE_MATCH.search(html.tostring(res[0])):
                 break
 
             for div in divs:
                 # Skip sponsored links
-                tags = div.cssselect('h2')
-                if tags and 'sponsored link' in clean(html.tostring(tags[0]), 1):
+                res = div.cssselect('h2')
+                if res and RE_SPONSORED_LINK.search(html.tostring(res[0])):
                     continue
 
                 for dl in div.cssselect('dl'):

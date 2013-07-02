@@ -55,6 +55,7 @@ logging.basicConfig(level=logging.DEBUG)
 conf = {
     'opensubtitles_username': '',
     'opensubtitles_password': '',
+    'filestube_api_key': '',
     'temp_dir': '/tmp',
     }
 try:
@@ -823,8 +824,8 @@ class FilestubeTest(unittest.TestCase):
     def setUp(self):
         self.pages_max = 3
         self.max_results = 10
-        self.obj = Filestube()
-        self.query = 'mediafire'
+        self.obj = Filestube(api_key=conf['filestube_api_key'])
+        self.query = GENERIC_QUERY
 
     def test_results(self):
         count = 0
@@ -832,7 +833,7 @@ class FilestubeTest(unittest.TestCase):
             if not res:
                 continue
 
-            for key in ('title', 'url', 'size'):
+            for key in ('title', 'url', 'size', 'date'):
                 self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
             count += 1
@@ -842,17 +843,15 @@ class FilestubeTest(unittest.TestCase):
         self.assertTrue(count > self.max_results * 2 / 3.0, 'failed to find enough results for "%s"' % (self.query))
 
     def test_results_pages(self):
-        orig = self.obj.check_next_link
+        orig = self.obj._send
 
-        with nested(patch.object(Filestube, 'check_next_link'),
-                patch.object(Filestube, '_get_download_info'),
-                ) as (mock_next, mock_info):
-            mock_next.side_effect = orig
-            mock_info.return_value = None
+        with nested(patch.object(Filestube, '_send'),
+                ) as (mock_send,):
+            mock_send.side_effect = orig
 
             list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
-        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+        self.assertEqual(len(mock_send.call_args_list), self.pages_max)
 
 
 if __name__ == '__main__':

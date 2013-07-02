@@ -1,23 +1,25 @@
 import re
-from datetime import datetime, timedelta
-from urlparse import urlparse, urljoin
+from datetime import datetime
+from urlparse import urlparse
+from urllib import urlencode
 import logging
 
-from lxml import html
+from lxml import html, etree
+
+logging.getLogger('requests').setLevel(logging.ERROR)
+import requests
 
 from filetools.title import clean, get_size
 
-from mediacore.web import Base, Browser
+from mediacore.web import Browser
 from mediacore.web.search import Result, SearchError
 
 
 PRIORITY = 1
-RE_ADVANCED_SEARCH = re.compile(r'\badvanced search\b', re.I)
-RE_ADDED = re.compile(r'\badded\b', re.I)
-RE_DATE = re.compile(r'(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)')
+API_URL = 'http://api.filestube.com'
 SORT_DEF = {
-    'date': ['dd'],
-    'popularity': ['pd'],
+    'date': 'dd',
+    'popularity': 'pd',
     }
 
 logger = logging.getLogger(__name__)
@@ -26,76 +28,53 @@ logger = logging.getLogger(__name__)
 class FilestubeError(Exception): pass
 
 
-class Filestube(Base):
-    URL = 'http://www.filestube.com/'
+class Filestube(object):
 
-    def _get_download_info(self, url):
-        browser = Browser()
-        browser.open(url)
-        tags = browser.cssselect('#copy_paste_links')
-        if not tags or not tags[0].text:
-            return
-        urls = tags[0].text.splitlines()
+    def __init__(self, api_key):
+        self.api_key = api_key
+        super(Filestube, self).__init__()
 
-        size = 0
-        for tag in browser.cssselect('#js_files_list tr .tright', []):
-            size += get_size(tag.text) or 0
-
-        date = None
-        for tag in browser.cssselect('.file_details_title', []):
-            res = RE_DATE.search(html.tostring(tag))
-            if res:
-                date = datetime.strptime(res.group(1), '%Y-%m-%d %H:%M:%S')
-                break
-        if not date:
-            logger.error('failed to get date from %s' % url)
-
-        return {'urls': urls, 'size': size, 'date': date}
+    def _send(self, query, page=1, sort='date'):
+        info = {
+            'key': self.api_key,
+            'phrase': query,
+            'sort': SORT_DEF[sort],
+            'page': page,
+            }
+        url = '%s?%s' % (API_URL, urlencode(info))
+        try:
+            response = requests.get(url)
+        except Exception, e:
+            raise SearchError('failed to get %s: %s' % (url, str(e)))
+        if response.status_code != requests.codes.ok:
+            raise SearchError('failed to get %s: %s' % (url, response.status_code))
+        return response.content
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
-        if not self.url:
-            raise SearchError('no data')
-
-        links = list(self.browser.links(text_regex=RE_ADVANCED_SEARCH))
-        if not links:
-            raise SearchError('failed to find advanced search link')
-        url = links[0].absolute_url
-
-        for i in range(pages_max):
-            if i == 0:
-                if not self.browser.submit_form(url,
-                        fields={'allwords': query, 'sort': SORT_DEF[sort]}):
-                    raise SearchError('no data')
-            else:
-                links = self.browser.cssselect('div#pager a')
-                if not links or not self.check_next_link(links[-1]):
-                    break
-                url = urljoin(self.url, links[-1].get('href'))
-                if not self.browser.open(url):
-                    raise SearchError('no data')
-
-            divs = self.browser.cssselect('div#newresult')
-            if divs is None:
-                raise SearchError('no data')
-
-            for div in divs:
-                links = div.cssselect('a')
-                if not links:
+        for page in range(1, pages_max + 1):
+            data = self._send(query, page, sort)
+            tree = etree.fromstring(data)
+            try:
+                results = int(tree.xpath('hasResults')[0].text)
+            except ValueError:
+                raise SearchError('failed to get results count from "%s"' % data)
+            if not results:
+                return
+            hits = int(tree.xpath('results/hitsForThisPage')[0].text)
+            if not hits:
+                return
+            for res in tree.xpath('results/hits'):
+                date = res.xpath('added')[0].text
+                result = Result()
+                result.auto = False
+                result.type = 'filestube'
+                result.title = clean(res.xpath('name')[0].text)
+                result.url = res.xpath('link')[0].text
+                result.size = get_size(res.xpath('size')[0].text)
+                result.date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+                if not result.validate(**kwargs):
                     continue
-
-                url = urljoin(self.url, links[0].get('href'))
-                info = self._get_download_info(url)
-                if info:
-                    result = Result()
-                    result.auto = False
-                    result.type = 'filestube'
-                    result.title = clean(self.get_link_text(html.tostring(links[0])))
-                    result.url = info['urls']
-                    result.size = info['size']
-                    result.date = info['date']
-                    if not result.validate(**kwargs):
-                        continue
-                    yield result
+                yield result
 
 
 def _get_download_url(url):
@@ -122,8 +101,4 @@ def _get_download_url(url):
 def get_download_urls(url):
     if not isinstance(url, (list, tuple)):
         url = [url]
-
-    res = []
-    for url_ in url:
-        res.append(_get_download_url(url_))
-    return res
+    return [_get_download_url(u) for u in url]

@@ -1,6 +1,5 @@
 import os
 import re
-from datetime import datetime
 import logging
 
 from filetools.title import Title, clean, get_size
@@ -8,6 +7,7 @@ from filetools.utils import in_range
 
 from systools.system import dotdict
 
+from mediacore.model.settings import Settings
 from mediacore.utils.utils import list_in, parse_magnet_url
 
 
@@ -125,14 +125,17 @@ def _get_plugins():
 
 def _get_plugin_object(plugin):
     module_ = _get_module(plugin)
-    if module_:
-        try:
-            object_ = getattr(module_, plugin.capitalize())()
-        except Exception:
-            logger.error('failed to get %s object' % plugin.capitalize())
-            return
-        if object_.url:
-            return object_
+    if not module_:
+        return None
+    args = Settings.get_settings(plugin)
+    try:
+        object_ = getattr(module_, plugin.capitalize())(**args)
+    except Exception:
+        logger.error('failed to get %s object' % plugin.capitalize())
+        return None
+    if hasattr(object_, 'URL') and not object_.url:
+        return None
+    return object_
 
 def get_query(query, category=None):
     query = clean(query, 1)
