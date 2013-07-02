@@ -34,11 +34,11 @@ class Filestube(object):
         self.api_key = api_key
         super(Filestube, self).__init__()
 
-    def _send(self, query, page=1, sort='date'):
+    def _send(self, query, page, sort):
         info = {
             'key': self.api_key,
             'phrase': query,
-            'sort': SORT_DEF[sort],
+            'sort': sort,
             'page': page,
             }
         url = '%s?%s' % (API_URL, urlencode(info))
@@ -51,6 +51,7 @@ class Filestube(object):
         return response.content
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
+        sort = SORT_DEF[sort]
         for page in range(1, pages_max + 1):
             data = self._send(query, page, sort)
             tree = etree.fromstring(data)
