@@ -57,7 +57,7 @@ class Filestube(object):
             tree = etree.fromstring(data)
             try:
                 results = int(tree.xpath('hasResults')[0].text)
-            except ValueError:
+            except (ValueError, IndexError):
                 raise SearchError('failed to get results count from "%s"' % data)
             if not results:
                 return
