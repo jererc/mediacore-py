@@ -1,13 +1,1 @@
-The media core library.
-
-
-Description:
-
-- model:
-    database methods
-
-- web:
-    websites libraries
-
-- web.search:
-    media search libraries
+Media core library
