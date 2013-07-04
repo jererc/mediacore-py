@@ -24,6 +24,7 @@ from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
 from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
 from mediacore.web.subscene import Subscene
+from mediacore.web.netflix import Netflix
 
 from mediacore.web.search import Result, results
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
@@ -56,6 +57,9 @@ conf = {
     'opensubtitles_username': '',
     'opensubtitles_password': '',
     'filestube_api_key': '',
+    'netflix_username': '',
+    'netflix_password': '',
+    'netflix_cookie_file': '',
     'temp_dir': '/tmp',
     }
 try:
@@ -852,6 +856,22 @@ class FilestubeTest(unittest.TestCase):
             list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
         self.assertEqual(len(mock_send.call_args_list), self.pages_max)
+
+
+@unittest.skipIf(not is_connected, 'not connected to the internet')
+class NetflixTest(unittest.TestCase):
+
+    def setUp(self):
+        self.obj = Netflix(conf['netflix_username'],
+                conf['netflix_password'], conf['netflix_cookie_file'])
+
+    def test_get_info_movie(self):
+        res = self.obj.get_info('planet of the apes')
+
+        self.assertTrue(res)
+        self.assertEqual(res.get('year'), 1968)
+        for key in ('title', 'url'):
+            self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, MOVIE))
 
 
 if __name__ == '__main__':
