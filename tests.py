@@ -871,7 +871,7 @@ class NetflixTest(unittest.TestCase):
         self.assertTrue(res)
         self.assertEqual(res.get('year'), 1968)
         for key in ('title', 'url'):
-            self.assertTrue(res.get(key), 'failed to get %s for "%s"' % (key, MOVIE))
+            self.assertTrue(res.get(key), 'failed to get %s' % key))
 
 
 if __name__ == '__main__':
