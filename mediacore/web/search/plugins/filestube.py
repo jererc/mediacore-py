@@ -65,13 +65,25 @@ class Filestube(object):
             if not hits:
                 return
             for res in tree.xpath('results/hits'):
+                url = res.xpath('link')[0].text
+                if not url:
+                    logger.error('failed to get url from %s' % data)
+                    continue
+                size = res.xpath('size')[0].text
+                if not size:
+                    logger.error('failed to get size from %s' % data)
+                    continue
                 date = res.xpath('added')[0].text
+                if not date:
+                    logger.error('failed to get date from %s' % data)
+                    continue
+
                 result = Result()
                 result.auto = False
                 result.type = 'filestube'
                 result.title = clean(res.xpath('name')[0].text)
-                result.url = res.xpath('link')[0].text
-                result.size = get_size(res.xpath('size')[0].text)
+                result.url = url
+                result.size = get_size(size)
                 result.date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
                 if not result.validate(**kwargs):
                     continue
