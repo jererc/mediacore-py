@@ -53,7 +53,7 @@ class Lastfm(Base):
     def _artist_albums(self, url, pages_max):
         for i in range(pages_max):
             if i > 0:
-                links = self.browser.cssselect('.pagination .nextlink')
+                links = self.browser.cssselect('.responsive-pagination [rel="next"]')
                 if not links or not self.check_next_link(links[-1]):
                     return
                 url = urljoin(self.url, links[-1].get('href'))
@@ -166,7 +166,7 @@ class Lastfm(Base):
     def _similar_artists(self, url, pages_max):
         for i in range(pages_max):
             if i > 0:
-                links = self.browser.cssselect('.pagination .nextlink')
+                links = self.browser.cssselect('.responsive-pagination [rel="next"]')
                 if not links or not self.check_next_link(links[-1]):
                     return
                 url = urljoin(self.url, links[-1].get('href'))
