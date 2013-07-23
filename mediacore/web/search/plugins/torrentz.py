@@ -27,8 +27,9 @@ RE_URL_SORT = {
     'popularity': re.compile(r'^peers$', re.I),
     }
 RE_CATEGORIES = re.compile(r'&#187;\W*(.*)$')
-RE_SPONSORED_LINK = re.compile(r'sponsored link', re.I)
-RE_APPROXIMATE_MATCH = re.compile(r'approximate match', re.I)
+RE_SPONSORED_LINK = re.compile(r'sponsored\s+link', re.I)
+RE_APPROXIMATE_MATCH = re.compile(r'approximate\s+match', re.I)
+RE_ERROR = re.compile(r'copyright\s+complaint', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,9 @@ class Torrentz(Base):
         browser.open(url)
         results = browser.cssselect('div.download dl')
         if not results:
-            logger.error('failed to get mirror urls from %s' % url)
+            errors = browser.cssselect('div.error')
+            if not (errors and RE_ERROR.search(errors[0].text)):
+                logger.error('failed to get mirror urls from %s' % url)
             return
 
         for result in results:
