@@ -4,7 +4,7 @@ import socket
 import cookielib
 from urlparse import urlparse
 from httplib import IncompleteRead, BadStatusLine
-from urllib2 import URLError
+from urllib2 import URLError, HTTPError
 import gzip
 import logging
 
@@ -58,6 +58,7 @@ class Browser(mechanize.Browser):
         if debug_http:
             self.set_debug_http(True)
         self.tree = None
+        self.url_error = None
 
     def _handle_response(self, response):
         if response.info().getheader('content-encoding') == 'gzip':
@@ -92,19 +93,26 @@ class Browser(mechanize.Browser):
         return mechanize.Browser._mech_open(self, *args, **kwargs)
 
     def _mech_open(self, *args, **kwargs):
+        def get_url():
+            url = kwargs.get('url', args[0])
+            if hasattr(url, 'get_full_url'):
+                url = url.get_full_url()
+            return url
+
         kwargs['timeout'] = REQUEST_TIMEOUT
         try:
             res = self._mech_open_wrapper(*args, **kwargs)
             res = self._handle_response(res)
             self.tree = self._get_tree(res)
+            self.url_error = None
             return res
+        except HTTPError, e:
+            self.url_error = e
+            logger.error('failed to open %s: %s' % (get_url(), str(e)))
         except (IncompleteRead, BadStatusLine, URLError, socket.gaierror,
                 socket.error, socket.timeout, mechanize.BrowserStateError,
                 TimeoutError), e:
-            url = kwargs.get('url', args[0])
-            if hasattr(url, 'get_full_url'):
-                url = url.get_full_url()
-            logger.error('failed to open %s: %s' % (url, str(e)))
+            logger.error('failed to open %s: %s' % (get_url(), str(e)))
         except Exception:
             logger.exception('exception (args: %s, %s)' % (args, kwargs))
         self.tree = None
