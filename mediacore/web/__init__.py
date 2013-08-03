@@ -2,8 +2,7 @@ import os.path
 import re
 import socket
 import cookielib
-from urlparse import urlparse
-from httplib import IncompleteRead, BadStatusLine
+from httplib import HTTPException
 from urllib2 import URLError, HTTPError
 import gzip
 import logging
@@ -109,12 +108,13 @@ class Browser(mechanize.Browser):
         except HTTPError, e:
             self.url_error = e
             logger.error('failed to open %s: %s' % (get_url(), str(e)))
-        except (IncompleteRead, BadStatusLine, URLError, socket.gaierror,
-                socket.error, socket.timeout, mechanize.BrowserStateError,
-                TimeoutError), e:
+        except (socket.timeout, TimeoutError), e:
+            logger.error('failed to open %s (timeout): %s' % (get_url(), str(e)))
+        except (HTTPException, URLError, socket.gaierror,
+                socket.error, mechanize.BrowserStateError), e:
             logger.error('failed to open %s: %s' % (get_url(), str(e)))
-        except Exception:
-            logger.exception('exception (args: %s, %s)' % (args, kwargs))
+        except Exception, e:
+            logger.exception('exception (args: %s, %s): %s' % (args, kwargs, str(e)))
         self.tree = None
 
     def follow_link(self, *args, **kwargs):
@@ -203,16 +203,8 @@ class Base(object):
             self.URL = [self.URL]
 
         for url in self.URL:
-            if self._is_accessible(url):
+            if self.browser.open(url):
                 return url
-
-    def _is_accessible(self, url):
-        if self.browser.open(url):
-            # url_ = self.browser.geturl()
-            # if get_website_name(url_) == get_website_name(url):
-            #     return True
-            # logger.info('%s is redirected to %s' % (url, url_))
-            return True
 
     def save_cookie(self, cookie_file):
         if self.cookie_jar:
@@ -228,9 +220,3 @@ class Base(object):
     def check_next_link(self, link, text='next'):
         next_text = clean(self.get_link_text(html.tostring(link)), 1)
         return next_text == text
-
-
-def get_website_name(url):
-    name = urlparse(url.lower()).netloc
-    name = re.sub(r'^www[^\.]*\.|\.[^\.]*$', '', name)
-    return name
