@@ -1,6 +1,5 @@
 import os
 import re
-from datetime import datetime, timedelta
 import logging
 
 from filetools.title import Title, clean, get_size
@@ -9,14 +8,11 @@ from filetools.utils import in_range
 from systools.system import dotdict
 
 from mediacore.model.settings import Settings
-from mediacore.model.worker import Worker
+from mediacore.web import update_rate, RateLimitReached
 from mediacore.utils.utils import list_in, parse_magnet_url
 
 
 PLUGINS_DIR = 'plugins'
-PLUGINS_QUOTA = {
-    'torrentz': timedelta(hours=24),
-    }
 
 logger = logging.getLogger(__name__)
 
@@ -153,31 +149,11 @@ def get_query(query, category=None):
     query = re.sub(r'^the\s+|^[\W_]+|[\W_]+$', '', query)
     return query
 
-def _validate_quota(plugin):
-    delta = PLUGINS_QUOTA.get(plugin)
-    if delta:
-        attr = '%s_quota_reached' % plugin
-        res = Worker.get_attr('search', attr)
-        if res:
-            if datetime.utcnow() < res + delta:
-                return False
-            Worker.set_attr('search', attr, None)
-
-    return True
-
-def _update_quota(plugin):
-    attr = '%s_quota_reached' % plugin
-    if not Worker.get_attr('search', attr):
-        Worker.set_attr('search', attr, datetime.utcnow())
-
 def results(query, plugins=None, **kwargs):
     if not plugins:
         plugins = _get_plugins()
 
     for plugin in plugins:
-        if not _validate_quota(plugin):
-            continue
-
         obj = _get_plugin_object(plugin)
         if not obj:
             yield None
@@ -195,6 +171,7 @@ def results(query, plugins=None, **kwargs):
         except SearchError:
             if plugin == 'torrentz' and obj.browser.url_error:
                 if obj.browser.url_error.reason.lower() == 'too many requests':
-                    _update_quota(plugin)
-
+                    update_rate(plugin, count=9999)
+            yield None
+        except RateLimitReached:
             yield None

@@ -34,16 +34,17 @@ class Binsearch(Base):
     URL = 'http://www.binsearch.info'
 
     def _get_date(self, age):
-        res = RE_DATE.search(age)
-        if res:
-            val = int(res.group(1))
-            unit = res.group(2).lower()
-            if unit == 'm':
-                return datetime.utcnow() - timedelta(minutes=val)
-            elif unit == 'h':
-                return datetime.utcnow() - timedelta(hours=val)
-            elif unit == 'd':
-                return datetime.utcnow() - timedelta(days=val)
+        if age:
+            res = RE_DATE.search(age)
+            if res:
+                val = int(res.group(1))
+                unit = res.group(2).lower()
+                if unit == 'm':
+                    return datetime.utcnow() - timedelta(minutes=val)
+                elif unit == 'h':
+                    return datetime.utcnow() - timedelta(hours=val)
+                elif unit == 'd':
+                    return datetime.utcnow() - timedelta(days=val)
 
         logger.error('failed to get date from "%s"' % age)
         return datetime.utcnow() - timedelta(days=1100)
@@ -90,7 +91,10 @@ class Binsearch(Base):
                     title = res[0]
                 result.title = clean(title)
 
-                result.date = self._get_date(tr[-1].text)
+                age = tr[-1].text
+                if not age:
+                    logger.error('failed to get age from %s' % log)
+                result.date = self._get_date(age)
 
                 refs = tr.cssselect('input[type="checkbox"]')
                 if not refs:

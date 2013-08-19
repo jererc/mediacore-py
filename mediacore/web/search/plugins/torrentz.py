@@ -7,7 +7,7 @@ from lxml import html
 
 from filetools.title import Title, clean, is_url
 
-from mediacore.web import Base, Browser
+from mediacore.web import Base, Browser, throttle
 from mediacore.web.search import Result, SearchError
 from mediacore.utils.utils import parse_magnet_url, RE_URL_MAGNET
 
@@ -105,6 +105,7 @@ class Torrentz(Base):
     def _sort(self, sort):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
+    @throttle(10)
     def results(self, query, category=None, sort='date', pages_max=1,
             **kwargs):
         if not self.url:

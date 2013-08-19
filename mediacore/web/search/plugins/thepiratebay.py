@@ -6,7 +6,7 @@ from lxml import html
 
 from filetools.title import clean, is_url
 
-from mediacore.web import Base
+from mediacore.web import Base, throttle
 from mediacore.web.search import Result, SearchError
 
 
@@ -69,6 +69,7 @@ class Thepiratebay(Base):
     def _sort(self, sort):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
+    @throttle(300)
     def results(self, query, category=None, sort='date', pages_max=1,
             **kwargs):
         if not self.url:

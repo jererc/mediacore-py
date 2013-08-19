@@ -22,11 +22,12 @@ from mediacore.web.tvrage import Tvrage
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
 from mediacore.web.vcdquality import Vcdquality
-from mediacore.web.opensubtitles import Opensubtitles, DownloadQuotaReached
+from mediacore.web.opensubtitles import Opensubtitles
 from mediacore.web.subscene import Subscene
 from mediacore.web.netflix import Netflix
 
-from mediacore.web.search import Result, results
+from mediacore import web as module_web
+from mediacore.web.search import Result, results, RateLimitReached
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
@@ -628,19 +629,24 @@ class OpensubtitlesTest(unittest.TestCase):
         self.assertTrue(count > 1, 'failed to find enough subtitles for "%s" season %s episode %s' % (TVSHOW, TVSHOW_SEASON, TVSHOW_EPISODE))
 
     def test_download(self):
-        result = False
-        for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
-            with mkdtemp() as temp_dir:
-                try:
-                    downloaded = self.obj.download(res,
-                            os.path.join(temp_dir, 'temp-sub-file'), temp_dir)
-                    self.assertTrue(downloaded, 'failed to download subtitles from %s' % res)
-                    result = True
-                except DownloadQuotaReached:
-                    pass
-            break
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-        self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)
+            result = False
+            for res in self.obj.results(MOVIE, lang=OPENSUBTITLES_LANG):
+                with mkdtemp() as temp_dir:
+                    try:
+                        downloaded = self.obj.download(res,
+                                os.path.join(temp_dir, 'temp-sub-file'), temp_dir)
+                        self.assertTrue(downloaded, 'failed to download subtitles from %s' % res)
+                        result = True
+                    except RateLimitReached:
+                        pass
+                break
+
+            self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)
 
 
 @unittest.skipIf(not is_connected, 'offline')
@@ -695,63 +701,78 @@ class ThepiratebayTest(unittest.TestCase):
         self.obj = Thepiratebay()
 
     def test_results(self):
-        count = 0
-        seeds_count = 0
-        for res in self.obj.results(GENERIC_QUERY):
-            if not res:
-                continue
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-            for key in ('title', 'url', 'category', 'size', 'date'):
-                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
-
-            if res.get('seeds') is not None:
-                seeds_count += 1
-
-            count += 1
-            if count == self.max_results:
-                break
-
-        self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
-        self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
-
-    def test_results_sort(self):
-        for sort in ('date', 'popularity'):
             count = 0
-            val_prev = None
-            for res in self.obj.results(GENERIC_QUERY, sort=sort):
+            seeds_count = 0
+            for res in self.obj.results(GENERIC_QUERY):
                 if not res:
                     continue
 
-                if sort == 'date':
-                    val = res.date
-                    if val_prev:
-                        self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
-                    val_prev = val
+                for key in ('title', 'url', 'category', 'size', 'date'):
+                    self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
-                elif sort == 'popularity':
-                    val = res.seeds
-                    if val_prev:
-                        self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
-                    val_prev = val
+                if res.get('seeds') is not None:
+                    seeds_count += 1
 
                 count += 1
                 if count == self.max_results:
                     break
 
-            self.assertTrue(count > self.max_results * 3 / 4.0)
+            self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
+            self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+
+    def test_results_sort(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            for sort in ('date', 'popularity'):
+                count = 0
+                val_prev = None
+                for res in self.obj.results(GENERIC_QUERY, sort=sort):
+                    if not res:
+                        continue
+
+                    if sort == 'date':
+                        val = res.date
+                        if val_prev:
+                            self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    elif sort == 'popularity':
+                        val = res.seeds
+                        if val_prev:
+                            self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    count += 1
+                    if count == self.max_results:
+                        break
+
+                self.assertTrue(count > self.max_results * 3 / 4.0)
 
     def test_results_pages(self):
-        orig = self.obj._next
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-        with nested(patch.object(Thepiratebay, '_next'),
-                patch.object(Result, 'get_hash'),
-                ) as (mock_next, mock_hash):
-            mock_next.side_effect = orig
-            mock_hash.return_value = None
+            orig = self.obj._next
 
-            list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+            with nested(patch.object(Thepiratebay, '_next'),
+                    patch.object(Result, 'get_hash'),
+                    ) as (mock_next, mock_hash):
+                mock_next.side_effect = orig
+                mock_hash.return_value = None
 
-        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+
+            self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
 @unittest.skipIf(not is_connected, 'offline')
@@ -763,63 +784,78 @@ class TorrentzTest(unittest.TestCase):
         self.obj = Torrentz()
 
     def test_results(self):
-        count = 0
-        seeds_count = 0
-        for res in self.obj.results(TVSHOW):
-            if not res:
-                continue
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-            for key in ('title', 'url', 'category', 'size', 'date'):
-                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
-
-            if res.get('seeds') is not None:
-                seeds_count += 1
-
-            count += 1
-            if count == self.max_results:
-                break
-
-        self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
-        self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
-
-    def test_results_sort(self):
-        for sort in ('date',):  # we do not test popularity since torrentz does not really sort by seeds
             count = 0
-            val_prev = None
-            for res in self.obj.results(TVSHOW, sort=sort):
+            seeds_count = 0
+            for res in self.obj.results(TVSHOW):
                 if not res:
                     continue
 
-                if sort == 'date':
-                    val = res.date
-                    if val_prev:
-                        self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
-                    val_prev = val
+                for key in ('title', 'url', 'category', 'size', 'date'):
+                    self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
-                elif sort == 'popularity':
-                    val = res.seeds
-                    if val_prev:
-                        self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
-                    val_prev = val
+                if res.get('seeds') is not None:
+                    seeds_count += 1
 
                 count += 1
                 if count == self.max_results:
                     break
 
-            self.assertTrue(count > self.max_results * 3 / 4.0)
+            self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
+            self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+
+    def test_results_sort(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            for sort in ('date',):  # we do not test popularity since torrentz does not really sort by seeds
+                count = 0
+                val_prev = None
+                for res in self.obj.results(TVSHOW, sort=sort):
+                    if not res:
+                        continue
+
+                    if sort == 'date':
+                        val = res.date
+                        if val_prev:
+                            self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    elif sort == 'popularity':
+                        val = res.seeds
+                        if val_prev:
+                            self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    count += 1
+                    if count == self.max_results:
+                        break
+
+                self.assertTrue(count > self.max_results * 3 / 4.0)
 
     def test_results_pages(self):
-        orig = self.obj._next
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-        with nested(patch.object(Torrentz, '_next'),
-                patch.object(Torrentz, 'get_link_text'),
-                ) as (mock_next, mock_getlink):
-            mock_next.side_effect = orig
-            mock_getlink.return_value = None
+            orig = self.obj._next
 
-            list(self.obj.results(TVSHOW, pages_max=self.pages_max))
+            with nested(patch.object(Torrentz, '_next'),
+                    patch.object(Torrentz, 'get_link_text'),
+                    ) as (mock_next, mock_getlink):
+                mock_next.side_effect = orig
+                mock_getlink.return_value = None
 
-        self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+                list(self.obj.results(TVSHOW, pages_max=self.pages_max))
+
+            self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
 @unittest.skipIf(not conf['filestube_api_key'], 'missing api key')
@@ -833,30 +869,40 @@ class FilestubeTest(unittest.TestCase):
         self.query = GENERIC_QUERY
 
     def test_results(self):
-        count = 0
-        for res in self.obj.results(self.query):
-            if not res:
-                continue
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-            for key in ('title', 'url', 'size', 'date'):
-                self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
+            count = 0
+            for res in self.obj.results(self.query):
+                if not res:
+                    continue
 
-            count += 1
-            if count == self.max_results:
-                break
+                for key in ('title', 'url', 'size', 'date'):
+                    self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
 
-        self.assertTrue(count > self.max_results * 2 / 3.0, 'failed to find enough results for "%s"' % (self.query))
+                count += 1
+                if count == self.max_results:
+                    break
+
+            self.assertTrue(count > self.max_results * 2 / 3.0, 'failed to find enough results for "%s"' % (self.query))
 
     def test_results_pages(self):
-        orig = self.obj._send
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
 
-        with nested(patch.object(Filestube, '_send'),
-                ) as (mock_send,):
-            mock_send.side_effect = orig
+            orig = self.obj._send
 
-            list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+            with nested(patch.object(Filestube, '_send'),
+                    ) as (mock_send,):
+                mock_send.side_effect = orig
 
-        self.assertEqual(len(mock_send.call_args_list), self.pages_max)
+                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+
+            self.assertEqual(len(mock_send.call_args_list), self.pages_max)
 
 
 @unittest.skipIf(not conf['netflix_username'] \

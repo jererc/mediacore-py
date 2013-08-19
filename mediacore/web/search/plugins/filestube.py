@@ -11,7 +11,7 @@ import requests
 
 from filetools.title import clean, get_size
 
-from mediacore.web import Browser
+from mediacore.web import Browser, throttle
 from mediacore.web.search import Result, SearchError
 
 
@@ -50,6 +50,7 @@ class Filestube(object):
             raise SearchError('failed to get %s: %s' % (url, response.status_code))
         return response.content
 
+    @throttle(300)
     def results(self, query, sort='date', pages_max=1, **kwargs):
         sort = SORT_DEF[sort]
         for page in range(1, pages_max + 1):

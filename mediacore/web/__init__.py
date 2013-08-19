@@ -1,4 +1,6 @@
 import os.path
+from datetime import datetime, timedelta
+from functools import wraps
 import re
 import socket
 import cookielib
@@ -23,13 +25,19 @@ from systools.system import timeout, TimeoutError
 
 from filetools.title import clean
 
+from mediacore.model.work import Work
+
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
+RE_SCRIPT = re.compile(r'<script\b.*?</script>', re.DOTALL)
 RE_LINK_TITLE = re.compile(r'<a\s*.*?>(.*?)</a>', re.I)
 RE_ENCODING = re.compile(r'.*charset=([^\s]+)', re.I)
 REQUEST_TIMEOUT = 30
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimitReached(Exception): pass
 
 
 class NoHistory(object):
@@ -74,6 +82,8 @@ class Browser(mechanize.Browser):
 
     def _get_tree(self, response):
         data = response.get_data()
+        data = RE_SCRIPT.sub('', data)
+
         content_type = response.info().getheader('content-type')
         res = RE_ENCODING.findall(content_type)
         if res:
@@ -82,6 +92,7 @@ class Browser(mechanize.Browser):
             except Exception, e:
                 logger.error('failed to decode "%s" at %s: %s' % (res[0],
                         response.geturl(), str(e)))
+
         try:
             return html.fromstring(data)
         except Exception, e:
@@ -193,8 +204,8 @@ class Base(object):
     def __init__(self, cookie_file=None, debug_http=False):
         self.cookie_jar = cookielib.LWPCookieJar() if cookie_file else None
         self.browser = Browser(robust_factory=self.ROBUST_FACTORY,
-                cookie_jar=self.cookie_jar, cookie_file=cookie_file,
-                debug_http=debug_http)
+                debug_http=debug_http, cookie_jar=self.cookie_jar,
+                cookie_file=cookie_file)
         self.url = self._get_url()
         self.accessible = True if self.url else False
 
@@ -220,3 +231,32 @@ class Base(object):
     def check_next_link(self, link, text='next'):
         next_text = clean(self.get_link_text(html.tostring(link)), 1)
         return next_text == text
+
+
+def _validate_rate(name, limit, minutes):
+    info = Work.get_info('rate', name)
+    if info:
+        if datetime.utcnow() > info['begin'] + timedelta(minutes=minutes):
+            Work.set_info('rate', name, None)
+        elif info['count'] >= limit:
+            return False
+    return True
+
+def update_rate(name, count=None):
+    info = Work.get_info('rate', name)
+    if not info:
+        info = {'begin': datetime.utcnow(), 'count': 0}
+    info['count'] = count or info['count'] + 1
+    Work.set_info('rate', name, info)
+
+def throttle(limit=60, minutes=60):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            name = func.__module__.rsplit('.', 1)[-1]
+            if not _validate_rate(name, limit, minutes):
+                raise RateLimitReached('rate limit reached for %s (%s requests / %s minutes)' % (name, limit, minutes))
+            result = func(*args, **kwargs)
+            update_rate(name)
+            return result
+        return wraps(func)(wrapper)
+    return decorator

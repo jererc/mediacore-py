@@ -9,7 +9,7 @@ from filetools.media import (is_html, files, clean_file, move_file,
         remove_file, mkdtemp)
 from filetools.download import unpack_download
 
-from mediacore.web import Base
+from mediacore.web import Base, throttle, update_rate, RateLimitReached
 
 
 DEFAULT_LANG = 'eng'
@@ -18,10 +18,6 @@ RE_NO_RESULT = re.compile(r'\bno\s+results\s+found\b', re.I)
 RE_DATE = re.compile(r'\s\((\d{4})\)\W*$')
 
 logger = logging.getLogger(__name__)
-
-
-class OpensubtitlesError(Exception): pass
-class DownloadQuotaReached(OpensubtitlesError): pass
 
 
 class Opensubtitles(Base):
@@ -48,7 +44,7 @@ class Opensubtitles(Base):
         urls = []
         if self.browser.open(url):
             urls = []
-            for link in self.browser.cssselect('a[id="free_btn"]', []):
+            for link in self.browser.cssselect('a[title="Download"]', []):
                 url_ = urljoin(self.url, link.get('href'))
                 if url_ not in urls:
                     urls.append(url_)
@@ -123,10 +119,13 @@ class Opensubtitles(Base):
         if not data or is_html(data):
             remove_file(file)
             if RE_MAXIMUM_DOWNLOAD.search(data):
-                raise DownloadQuotaReached('maximum download quota reached')
+                update_rate(self.__module__.rsplit('.', 1)[-1], count=9999)
+                logger.error('download limit reached')
+                raise RateLimitReached('opensubtitles download limit reached')
             return
         return True
 
+    @throttle(15, 120)
     def download(self, url, dst, temp_dir):
         files_dst = []
         with mkdtemp(temp_dir) as temp_dst:
