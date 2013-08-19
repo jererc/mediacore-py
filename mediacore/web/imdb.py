@@ -27,14 +27,23 @@ class Imdb(Base):
     ROBUST_FACTORY = True
 
     def _get_urls(self, query, type='title'):
+        urls = []
         self.browser.addheaders = [('Accept-Language', 'en-US,en')]
         if self.browser.submit_form(self.url, fields={'q': query}):
             url = self.browser.geturl()
             if RE_URLS[type].search(url):
-                return [url]
-            return [r.absolute_url for r in self.browser.links(
-                    text_regex=Title(query).get_search_re(),
-                    url_regex=RE_URLS[type])]
+                urls = [url]
+            else:
+                re_name = Title(query).get_search_re()
+                for res in self.browser.cssselect('.result_text a', []):
+                    if not re_name.search(clean(res.text)):
+                        continue
+                    url = urljoin(self.url, res.get('href'))
+                    if not RE_URLS[type].search(url):
+                        continue
+                    urls.append(url)
+
+        return urls
 
     def _get_title_url_info(self, url):
         if not self.browser.open(url):
@@ -149,15 +158,8 @@ class Imdb(Base):
 
     @timeout(120)
     def get_info(self, query=None, url=None, type='title', year=None):
-        if url:
-            urls = [url]
-        else:
-            urls = self._get_urls(query, type=type)
-            if not urls:
-                return
-
+        urls = [url] if url else self._get_urls(query, type=type)
         for url in urls:
-
             if type == 'title':
                 res = self._get_title_url_info(url)
                 if res:
@@ -165,7 +167,6 @@ class Imdb(Base):
                     if year and year_ and abs(year - year_) > 1:
                         continue
                     return res
-
             elif type == 'name':
                 for url in urls:
                     res = self._get_name_url_info(url)
