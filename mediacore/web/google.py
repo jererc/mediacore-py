@@ -39,7 +39,7 @@ class Google(Base):
                     logger.error('failed to get links from %s' % log)
                     continue
                 url = links[0].get('href')
-                if not urlparse(url).scheme:
+                if not url or not urlparse(url).scheme:
                     continue
                 title = self.get_link_text(html.tostring(links[0]))
                 if not title:
