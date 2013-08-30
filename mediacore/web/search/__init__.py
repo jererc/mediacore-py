@@ -171,7 +171,7 @@ def results(query, plugins=None, **kwargs):
         except SearchError:
             if plugin == 'torrentz' and obj.browser.url_error:
                 if obj.browser.url_error.reason.lower() == 'too many requests':
-                    update_rate(plugin, count=9999)
+                    update_rate(plugin, count=-1)
             yield None
         except RateLimitReached:
             yield None

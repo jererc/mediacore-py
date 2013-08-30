@@ -119,7 +119,7 @@ class Opensubtitles(Base):
         if not data or is_html(data):
             remove_file(file)
             if RE_MAXIMUM_DOWNLOAD.search(data):
-                update_rate(self.__module__.rsplit('.', 1)[-1], count=9999)
+                update_rate(self.__module__.rsplit('.', 1)[-1], count=-1)
                 logger.error('download limit reached')
                 raise RateLimitReached('opensubtitles download limit reached')
             return

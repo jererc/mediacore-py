@@ -233,28 +233,35 @@ class Base(object):
         return next_text == text
 
 
+def update_rate(name, count=None):
+    info = Work.get_info('rate', name)
+    if not info:
+        info = {'begin': datetime.utcnow(), 'count': 0}
+    elif count == -1:
+        delta = datetime.utcnow() - info['begin']
+        logger.info('reached %s rate limit after %s seconds' % (name, delta.seconds))
+
+    info['count'] = count or info['count'] + 1
+    Work.set_info('rate', name, info)
+
 def _validate_rate(name, limit, minutes):
     info = Work.get_info('rate', name)
     if info:
         if datetime.utcnow() > info['begin'] + timedelta(minutes=minutes):
             Work.set_info('rate', name, None)
         elif info['count'] >= limit:
+            update_rate(name, count=-1)
+            return False
+        elif info['count'] == -1:
             return False
     return True
-
-def update_rate(name, count=None):
-    info = Work.get_info('rate', name)
-    if not info:
-        info = {'begin': datetime.utcnow(), 'count': 0}
-    info['count'] = count or info['count'] + 1
-    Work.set_info('rate', name, info)
 
 def throttle(limit=60, minutes=60):
     def decorator(func):
         def wrapper(*args, **kwargs):
             name = func.__module__.rsplit('.', 1)[-1]
             if not _validate_rate(name, limit, minutes):
-                raise RateLimitReached('rate limit reached for %s (%s requests / %s minutes)' % (name, limit, minutes))
+                raise RateLimitReached('%s rate limit reached (%s requests / %s minutes)' % (name, limit, minutes))
             result = func(*args, **kwargs)
             update_rate(name)
             return result

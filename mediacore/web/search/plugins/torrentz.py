@@ -105,7 +105,7 @@ class Torrentz(Base):
     def _sort(self, sort):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
-    @throttle(10)
+    @throttle(20, 120)
     def results(self, query, category=None, sort='date', pages_max=1,
             **kwargs):
         if not self.url:

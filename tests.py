@@ -32,6 +32,8 @@ from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
 
+from mediacore.web.search import SearchError
+
 
 GENERIC_QUERY = 'lost'
 
@@ -70,8 +72,6 @@ try:
         conf.update(json.load(fd))
 except Exception, e:
     logging.debug('failed to load tests config: %s' % str(e))
-
-is_connected = Google().accessible
 
 
 @contextmanager
@@ -303,7 +303,6 @@ class ResultTest(unittest.TestCase):
 #
 # Web
 #
-@unittest.skipIf(not is_connected, 'offline')
 class GoogleTest(unittest.TestCase):
 
     def setUp(self):
@@ -325,7 +324,6 @@ class GoogleTest(unittest.TestCase):
         self.assertTrue(res > 0, 'failed to get results count for "%s"' % GENERIC_QUERY)
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class YoutubeTest(unittest.TestCase):
 
     def setUp(self):
@@ -353,7 +351,6 @@ class YoutubeTest(unittest.TestCase):
         self.assertTrue(ALBUM.lower() in res['title'].lower(), 'failed to find album "%s" in "%s"' % (ALBUM, res['title']))
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class ImdbTest(unittest.TestCase):
 
     def setUp(self):
@@ -408,7 +405,6 @@ class ImdbTest(unittest.TestCase):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class TvrageTest(unittest.TestCase):
 
     def setUp(self):
@@ -458,7 +454,6 @@ class TvrageTest(unittest.TestCase):
         self.assertTrue(episode_count > self.max_results / 2)
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class SputnikmusicTest(unittest.TestCase):
 
     def setUp(self):
@@ -500,7 +495,6 @@ class SputnikmusicTest(unittest.TestCase):
                 self.assertTrue(release.get(key), 'failed to get review %s from %s' % (key, release))
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class LastfmTest(unittest.TestCase):
 
     def setUp(self):
@@ -557,7 +551,6 @@ class LastfmTest(unittest.TestCase):
         self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class VcdqualityTest(unittest.TestCase):
 
     def setUp(self):
@@ -594,7 +587,6 @@ class VcdqualityTest(unittest.TestCase):
 
 @unittest.skipIf(not conf['opensubtitles_username'] \
         or not conf['opensubtitles_password'], 'missing config')
-@unittest.skipIf(not is_connected, 'offline')
 class OpensubtitlesTest(unittest.TestCase):
 
     def setUp(self):
@@ -649,7 +641,6 @@ class OpensubtitlesTest(unittest.TestCase):
             self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class SubsceneTest(unittest.TestCase):
 
     def setUp(self):
@@ -692,7 +683,6 @@ class SubsceneTest(unittest.TestCase):
         self.assertTrue(result, 'failed to find subtitles for "%s"' % MOVIE)
 
 
-@unittest.skipIf(not is_connected, 'offline')
 class ThepiratebayTest(unittest.TestCase):
 
     def setUp(self):
@@ -775,7 +765,23 @@ class ThepiratebayTest(unittest.TestCase):
             self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
-@unittest.skipIf(not is_connected, 'offline')
+def check_torrentz():
+    obj = Torrentz()
+    with nested(patch.object(module_web, '_validate_rate'),
+            patch.object(module_web, 'update_rate'),
+            ) as (mock_validate, mock_update):
+        mock_validate.return_value = True
+        try:
+            for res in obj.results('test'):
+                break
+        except SearchError:
+            if obj.browser.url_error \
+                    and obj.browser.url_error.reason.lower() == 'too many requests':
+                return False
+    return True
+
+
+@unittest.skipIf(not check_torrentz(), 'rate limit reached')
 class TorrentzTest(unittest.TestCase):
 
     def setUp(self):
@@ -859,7 +865,6 @@ class TorrentzTest(unittest.TestCase):
 
 
 @unittest.skipIf(not conf['filestube_api_key'], 'missing api key')
-@unittest.skipIf(not is_connected, 'offline')
 class FilestubeTest(unittest.TestCase):
 
     def setUp(self):
@@ -908,7 +913,6 @@ class FilestubeTest(unittest.TestCase):
 @unittest.skipIf(not conf['netflix_username'] \
         or not conf['netflix_password'] or not conf['netflix_cookie_file'],
         'missing config')
-@unittest.skipIf(not is_connected, 'offline')
 class NetflixTest(unittest.TestCase):
 
     def setUp(self):
