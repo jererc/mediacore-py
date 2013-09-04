@@ -13,7 +13,6 @@ from mediacore.web import Base
 
 
 URL_SCHEDULE = 'http://www.tvrage.com/schedule.php'
-RE_URL_MAIN = re.compile(r'/[^\.]+$', re.I)
 RE_EPISODE = re.compile(r'\((\d+)x(\d+)\)', re.I)
 RE_EPISODE_INFO = re.compile(r'\b(\d+x\d+)\b.*\((.*?/\d+/\d+)\)', re.I)
 RE_COUNTRY = re.compile(r'>\s*(.*?)\s*\)')
@@ -37,11 +36,15 @@ class Tvrage(Base):
         if is_url(query):
             return self.browser.open(query)
 
-        if self.browser.submit_form(self.url, fields={'search': query}):
+        if self.browser.submit_form(self.url, index=1, fields={'search': query}):
             re_q = Title(query).get_search_re()
-            for link in self.browser.links(url_regex=RE_URL_MAIN):
-                if re_q.search(clean(link.text)):
-                    return self.browser.open(link.absolute_url)
+            for res in self.browser.cssselect('#show_search a', []):
+                url = res.get('href')
+                if not url or not res.text:
+                    continue
+                if not re_q.search(clean(res.text)):
+                    continue
+                return self.browser.open(urljoin(self.url, url))
 
     @timeout(120)
     def get_info(self, query):
