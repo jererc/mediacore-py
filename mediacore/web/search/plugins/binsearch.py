@@ -5,7 +5,7 @@ import logging
 
 from lxml import html
 
-logging.getLogger('requests').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 import requests
 
 from filetools.title import clean, get_size
@@ -14,7 +14,7 @@ from mediacore.web import Base, Browser
 from mediacore.web.search import Result, SearchError
 
 
-PRIORITY = 0
+PRIORITY = None
 RE_ADVANCED_SEARCH = re.compile(r'\badvanced search\b', re.I)
 RE_COLLECTION = re.compile(r'\bcollection\b', re.I)
 RE_PASSWORD = re.compile(r'\brequires\s+password\b', re.I)

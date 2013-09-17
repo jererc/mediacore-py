@@ -3,7 +3,7 @@ import re
 from urlparse import urljoin, parse_qs
 import logging
 
-logging.getLogger('requests').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 import requests
 
 from filetools.title import Title, clean

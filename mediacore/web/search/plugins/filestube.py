@@ -6,7 +6,7 @@ import logging
 
 from lxml import html, etree
 
-logging.getLogger('requests').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 import requests
 
 from filetools.title import clean, get_size
