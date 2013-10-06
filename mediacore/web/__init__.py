@@ -96,7 +96,8 @@ class Browser(mechanize.Browser):
         try:
             return html.fromstring(data)
         except Exception, e:
-            logger.error('failed to parse "%s": %s' % (data, str(e)))
+            logger.error('failed to parse "%s" at %s: %s' % (data,
+                    response.geturl(), str(e)))
 
     @timeout(REQUEST_TIMEOUT)
     def _mech_open_wrapper(self, *args, **kwargs):

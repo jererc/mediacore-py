@@ -36,7 +36,7 @@ class Tvrage(Base):
         if is_url(query):
             return self.browser.open(query)
 
-        if self.browser.submit_form(self.url, index=1, fields={'search': query}):
+        if self.browser.submit_form(self.url, index=0, fields={'search': query}):
             re_q = Title(query).get_search_re()
             for res in self.browser.cssselect('#show_search a', []):
                 url = res.get('href')
