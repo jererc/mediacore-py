@@ -1,12 +1,10 @@
 import re
 from datetime import datetime, timedelta
 from urlparse import urljoin
+import requests
 import logging
 
 from lxml import html
-
-logging.getLogger('urllib3').setLevel(logging.ERROR)
-import requests
 
 from filetools.title import clean, get_size
 

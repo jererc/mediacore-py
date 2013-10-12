@@ -1,10 +1,8 @@
 import os.path
 import re
 from urlparse import urljoin, parse_qs
-import logging
-
-logging.getLogger('urllib3').setLevel(logging.ERROR)
 import requests
+import logging
 
 from filetools.title import Title, clean
 from filetools.media import files, clean_file, move_file, mkdtemp

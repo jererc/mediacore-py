@@ -2,6 +2,7 @@ from mediacore.web.imdb import Imdb
 from mediacore.web.tvrage import Tvrage
 from mediacore.web.sputnikmusic import Sputnikmusic
 from mediacore.web.lastfm import Lastfm
+from mediacore.web.discogs import Discogs
 from mediacore.web.youtube import Youtube
 from mediacore.web.metacritic import Metacritic
 from mediacore.web.rottentomatoes import Rottentomatoes
@@ -39,7 +40,10 @@ def get_music_albums(band):
 
     info_sputnikmusic = sputnikmusic.get_info(band) or {}
     info_lastfm = lastfm.get_info(band) or {}
-    albums_info = info_sputnikmusic.get('albums', []) + info_lastfm.get('albums', [])
+    info_discogs = Discogs().get_info(band) or {}
+    albums_info = info_sputnikmusic.get('albums', []) \
+            + info_lastfm.get('albums', []) \
+            + info_discogs.get('albums', [])
 
     return list(set([a['name'] for a in albums_info]))
 
@@ -81,7 +85,7 @@ def similar_music(band, filters=None,
         randomize_bands=True, randomize_albums=False):
     '''Iterate over similar artists albums from a music band.
     '''
-    objects = (Sputnikmusic(), Lastfm())
+    objects = (Sputnikmusic(), Lastfm(), Discogs())
     similar_bands = []
     for obj in objects:
         res = obj.get_similar(band)
@@ -158,6 +162,7 @@ def search_extra(obj):
             album = info.get('album') or obj.get('album')
             set_extra('sputnikmusic', Sputnikmusic().get_info(artist, album))
             set_extra('lastfm', Lastfm().get_info(artist, album))
+            set_extra('discogs', Discogs().get_info(artist, album))
             set_extra('youtube', Youtube().get_track(artist, album))
             if album:
                 set_extra('metacritic', Metacritic().get_info(album,

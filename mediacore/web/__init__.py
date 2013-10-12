@@ -9,6 +9,8 @@ from urllib2 import URLError, HTTPError
 import gzip
 import logging
 
+logging.getLogger('urllib3').setLevel(logging.ERROR)
+
 import mechanize
 
 from lxml import html
