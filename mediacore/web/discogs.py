@@ -8,7 +8,7 @@ from filetools.title import Title, clean
 
 RE_DATE_ALBUM = re.compile(r'(\d{4})(-(\d{2})-(\d{2}))?$')
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 discogs.user_agent = 'mediacore-py/0.1 +https://github.com/jererc/mediacore-py'
 
 
@@ -31,7 +31,7 @@ class Discogs(object):
                 name = res.title if params['type'] == 'master' else res.name
                 if re_name.search(clean(name)):
                     return res
-        except discogs.PaginationError:
+        except (discogs.PaginationError, discogs.HTTPError):
             pass
         return None
 
@@ -47,6 +47,8 @@ class Discogs(object):
 
     def get_info(self, artist, album=None):
         obj = self._get_object(artist, album)
+        if not obj:
+            return None
         if album:
             return self._get_album_info(obj.key_release)
 
