@@ -27,7 +27,7 @@ from mediacore.web.subscene import Subscene
 from mediacore.web.netflix import Netflix
 
 from mediacore import web as module_web
-from mediacore.web.search import Result, results, RateLimitReached
+from mediacore.web.search import Result, RateLimitReached
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
@@ -318,8 +318,8 @@ class GoogleTest(unittest.TestCase):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
         self.assertEqual(res[-1]['page'], self.pages_max, 'last result page (%s) does not equal max pages (%s) for "%s"' % (res[-1]['page'], self.pages_max, GENERIC_QUERY))
 
-    def test_get_nb_results(self):
-        res = self.obj.get_nb_results(GENERIC_QUERY)
+    def test_get_results_count(self):
+        res = self.obj.get_results_count(GENERIC_QUERY)
 
         self.assertTrue(res > 0, 'failed to get results count for "%s"' % GENERIC_QUERY)
 
