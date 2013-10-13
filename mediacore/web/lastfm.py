@@ -31,32 +31,36 @@ class Lastfm(Base):
     def _clean_url(self, url):
         return url.replace(' ', '+')
 
-    def _get_results_url(self, query):
-        self.browser.submit_form(self.url, fields={'q': query})
+    def _get_results_url(self, artist):
+        self.browser.submit_form(self.url, fields={'q': artist})
         for tag in self.browser.cssselect('#artistResults a', []):
             if RE_ARTISTS.search(tag.text):
                 return urljoin(self.url, self._clean_url(tag.get('href')))
 
-    def _get_artist_url(self, query):
-        url = self._get_results_url(query)
+    def _get_artist_url(self, artist):
+        url = self._get_results_url(artist)
         if not url:
             return
-        re_name = Title(query).get_search_re()
+        re_name = Title(artist).get_search_re()
         self.browser.open(url)
         for tag in self.browser.cssselect('.artistsWithInfo li', []):
             links = tag.cssselect('a')
             if links:
-                artist = clean(self.get_link_text(html.tostring(links[0])))
-                if re_name.search(artist):
+                name = clean(self.get_link_text(html.tostring(links[0])))
+                if re_name.search(name):
                     return urljoin(self.url, self._clean_url(links[0].get('href')))
+
+    def _get_next_page_url(self):
+        links = self.browser.cssselect('.whittle-pagination [rel="next"]')
+        if links and self.check_next_link(links[-1]):
+            return urljoin(self.url, links[-1].get('href'))
 
     def _artist_albums(self, url, pages_max):
         for i in range(pages_max):
             if i > 0:
-                links = self.browser.cssselect('.responsive-pagination [rel="next"]')
-                if not links or not self.check_next_link(links[-1]):
+                url = self._get_next_page_url()
+                if not url:
                     return
-                url = urljoin(self.url, links[-1].get('href'))
 
             self.browser.open(url)
             for tag in self.browser.cssselect('.album-item', []):
@@ -106,36 +110,34 @@ class Lastfm(Base):
 
                 yield info_album
 
-    def _get_info(self, query, pages_max):
-        url = self._get_artist_url(query)
+    def _get_info(self, artist, pages_max):
+        url = self._get_artist_url(artist)
         if not url:
             return
         self.browser.open(url)
 
         info = {
+            'name': clean(artist, 1),
             'url': url,
+            'genre': [],
             'albums': [],
             }
 
-        genre = []
         for tag in self.browser.cssselect('.tags li a', []):
             if not RE_MORE_TAGS.search(tag.text):
-                genre.append(clean(tag.text))
-        if genre:
-            info['genre'] = genre
+                info['genre'].append(clean(tag.text))
 
         # Get albums
         links = self.browser.cssselect('.artist-top-albums a')
         if not links:
-            logger.debug('failed to find albums link for "%s" at %s' % (query, url))
+            logger.debug('failed to find albums link for "%s" at %s' % (artist, url))
             return info
         elif not RE_ALBUMS.search(links[0].text):
             return
 
         url_albums = urljoin(self.url, links[0].get('href'))
         for info_album in self._artist_albums(url_albums, pages_max):
-            if info.get('genre'):
-                info_album['genre'] = info['genre']
+            info_album['genre'] = info['genre']
             info['albums'].append(info_album)
 
         return info
@@ -166,10 +168,9 @@ class Lastfm(Base):
     def _similar_artists(self, url, pages_max):
         for i in range(pages_max):
             if i > 0:
-                links = self.browser.cssselect('.responsive-pagination [rel="next"]')
-                if not links or not self.check_next_link(links[-1]):
+                url = self._get_next_page_url()
+                if not url:
                     return
-                url = urljoin(self.url, links[-1].get('href'))
 
             self.browser.open(url)
             for li in self.browser.cssselect('.similar-artists li', []):
