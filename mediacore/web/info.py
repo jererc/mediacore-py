@@ -25,7 +25,6 @@ def get_movies_titles(name):
 
     info = imdb.get_info(name, type='name') or {}
     movies_info = info.get('titles_known_for', [])
-
     return list(set([a['title'] for a in movies_info]))
 
 def get_music_albums(band):
@@ -45,7 +44,7 @@ def get_music_albums(band):
             + info_lastfm.get('albums', []) \
             + info_discogs.get('albums', [])
 
-    return list(set([a['name'] for a in albums_info]))
+    return list(set([a['title'] for a in albums_info]))
 
 def similar_movies(query, type='title', year=None, filters=None,
         randomize_titles=True):
@@ -90,7 +89,7 @@ def similar_music(band, filters=None,
     for obj in objects:
         res = obj.get_similar(band)
         if res:
-            similar_bands.extend([r['title'] for r in res])
+            similar_bands.extend([r['name'] for r in res])
 
     similar_bands = list(set(similar_bands))
     if randomize_bands:
@@ -109,13 +108,13 @@ def similar_music(band, filters=None,
 
             type = obj.__class__.__name__.lower()
             for album_info in albums:
-                if album_info['name'] in albums_names:
+                if album_info['title'] in albums_names:
                     continue
-                albums_names.append(album_info['name'])
+                albums_names.append(album_info['title'])
 
                 if filters and not validate_info(album_info, filters[type]):
                     continue
-                yield (similar_band, album_info['name'])
+                yield (similar_band, album_info['title'])
 
 def _get_obj_date(obj):
     date = None

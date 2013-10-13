@@ -473,7 +473,7 @@ class SputnikmusicTest(unittest.TestCase):
         res = self.obj.get_info(self.artist, self.album)
 
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
-        self.assertEqual(res.get('name'), self.album.lower())
+        self.assertEqual(res.get('title'), self.album.lower())
         self.assertEqual(res.get('date'), self.album_year)
         for key in ('rating', 'url', 'url_thumbnail'):
             self.assertTrue(res.get(key), 'failed to get %s for artist "%s" album "%s"' % (key, self.artist, self.album))
@@ -483,7 +483,7 @@ class SputnikmusicTest(unittest.TestCase):
 
         self.assertTrue(res, 'failed to get similar for artist "%s"' % self.artist)
         for r in res:
-            for key in ('title', 'url'):
+            for key in ('name', 'url'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
     def test_reviews(self):
@@ -516,7 +516,7 @@ class LastfmTest(unittest.TestCase):
         res = self.obj.get_info(self.artist, self.album)
 
         self.assertTrue(res, 'failed to get info for artist "%s" album "%s"' % (self.artist, self.album))
-        self.assertEqual(res.get('name'), self.album.lower())
+        self.assertEqual(res.get('title'), self.album.lower())
         self.assertEqual(res.get('date'), self.album_year)
         self.assertTrue(res.get('url'))
 
@@ -536,7 +536,7 @@ class LastfmTest(unittest.TestCase):
 
         self.assertTrue(res, 'failed to get similar for artist "%s"' % self.artist)
         for r in res:
-            for key in ('title', 'url'):
+            for key in ('name', 'url'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
     def test_get_similar_pages(self):

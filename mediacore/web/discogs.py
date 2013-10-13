@@ -1,6 +1,8 @@
 import re
 import logging
 
+from requests.exceptions import ConnectionError
+
 import discogs_client as discogs
 
 from filetools.title import Title, clean
@@ -33,15 +35,17 @@ class Discogs(object):
                     return res
         except (discogs.PaginationError, discogs.HTTPError):
             pass
+        except ConnectionError, e:
+            logger.error('failed to get object for %s%s: %s', artist, ' - %s' % album if album else '', str(e))
         return None
 
     def _get_album_info(sef, release):
-        res = RE_DATE_ALBUM.search(release.data['released'])
+        res = RE_DATE_ALBUM.search(release.data.get('released', ''))
         return {
-            'name': clean(release.title, 1),
-            'genre': [clean(g, 1) for g in release.data['styles']],
+            'title': clean(release.title, 1),
+            'genre': [clean(g, 1) for g in release.data.get('styles', [])],
             'date': int(res.group(1)) if res else None,
-            'url': release.data['uri'],
+            'url': release.data.get('uri'),
             'url_thumbnail': release.data.get('thumb'),
             }
 
@@ -52,45 +56,51 @@ class Discogs(object):
         if album:
             return self._get_album_info(obj.key_release)
 
-        res = {
-            'name': clean(obj.name, 1),
-            'url': obj.data['uri'],
-            'genre': [],
-            'albums': [],
-            }
-        for release in obj.releases:
-            if not isinstance(release, discogs.MasterRelease):
-                continue
-            if obj.name not in [a.name for a in release.artists]:
-                continue
-            info = self._get_album_info(release.key_release)
-            res['albums'].append(info)
-            res['genre'] = list(set(res['genre'] + info['genre']))
+        try:
+            res = {
+                'name': clean(obj.name, 1),
+                'url': obj.data.get('uri'),
+                'genre': [],
+                'albums': [],
+                }
+            for release in obj.releases:
+                if not isinstance(release, discogs.MasterRelease):
+                    continue
+                if obj.name not in [a.name for a in release.artists]:
+                    continue
+                info = self._get_album_info(release.key_release)
+                res['albums'].append(info)
+                res['genre'] = list(set(res['genre'] + info['genre']))
+        except (discogs.HTTPError, ConnectionError), e:
+            logger.error('failed to get info for %s%s: %s', artist, ' - %s' % album if album else '', str(e))
 
-        return res
+        return None
 
     def get_similar(self, artist, releases_max=10):
         res = []
 
-        artist = self._get_object(artist)
-        if artist:
+        obj = self._get_object(artist)
+        if obj:
             count = 0
-            for release in artist.releases:
-                if not isinstance(release, discogs.MasterRelease):
-                    continue
-                if artist.name not in [a.name for a in release.artists]:
-                    continue
+            try:
+                for release in obj.releases:
+                    if not isinstance(release, discogs.MasterRelease):
+                        continue
+                    if obj.name not in [a.name for a in release.artists]:
+                        continue
 
-                for rel in release.key_release.labels[0].releases:
-                    data = {
-                        'title': rel['artist'],
-                        'url': None,
-                        }
-                    if data not in res:
-                        res.append(data)
+                    for rel in release.key_release.labels[0].releases:
+                        data = {
+                            'name': rel['artist'],
+                            'url': None,
+                            }
+                        if data not in res:
+                            res.append(data)
 
-                count += 1
-                if count >= releases_max:
-                    break
+                    count += 1
+                    if count >= releases_max:
+                        break
+            except (discogs.HTTPError, ConnectionError), e:
+                logger.error('failed to get %s similar: %s', artist, str(e))
 
         return res

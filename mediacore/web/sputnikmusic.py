@@ -80,11 +80,11 @@ class Sputnikmusic(Base):
                     info_album['genre'] = info['genre']
 
                 try:
-                    info_album['name'] = clean(tds[1][0][0][0][0].text, 1)
+                    info_album['title'] = clean(tds[1][0][0][0][0].text, 1)
                 except Exception:
-                    logger.error('failed to get album name from %s' % log)
+                    logger.error('failed to get album title from %s' % log)
                     continue
-                if not info_album['name']:
+                if not info_album['title']:
                     continue
                 try:
                     info_album['url'] = urljoin(self.url, tds[0][0].get('href'))
@@ -120,7 +120,7 @@ class Sputnikmusic(Base):
         if info:
             re_album = Title(album).get_search_re()
             for res in info['albums']:
-                if re_album.search(res['name']):
+                if re_album.search(res['title']):
                     return res
 
     @timeout(120)
@@ -134,7 +134,7 @@ class Sputnikmusic(Base):
                 if clean(tag[0][0].text, 1) == 'similar bands':
                     for tag_ in tag[1:]:
                         res.append({
-                            'title': clean(tag_.text, 1),
+                            'name': clean(tag_.text, 1),
                             'url': urljoin(self.url, tag_.get('href'))
                             })
                     break

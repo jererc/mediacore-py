@@ -83,8 +83,8 @@ class Browser(mechanize.Browser):
         return response
 
     def _get_tree(self, response):
-        data = response.get_data()
-        data = RE_SCRIPT.sub('', data)
+        response_data = response.get_data()
+        data = RE_SCRIPT.sub('', response_data)
 
         content_type = response.info().getheader('content-type')
         res = RE_ENCODING.findall(content_type)
@@ -98,7 +98,7 @@ class Browser(mechanize.Browser):
         try:
             return html.fromstring(data)
         except Exception, e:
-            logger.error('failed to parse "%s" at %s: %s' % (data,
+            logger.error('failed to parse "%s" at %s: %s' % (response_data,
                     response.geturl(), str(e)))
 
     @timeout(REQUEST_TIMEOUT)

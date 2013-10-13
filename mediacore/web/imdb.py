@@ -174,7 +174,7 @@ class Imdb(Base):
                         return res
 
     @timeout(120)
-    def get_similar(self, query=None, type='title', year=None):
+    def get_similar(self, query, type='title', year=None):
         '''Get similar movies.
         '''
         if type == 'name':

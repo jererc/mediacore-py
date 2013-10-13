@@ -69,10 +69,10 @@ class Lastfm(Base):
                 meta_tags = tag.cssselect('[itemprop="name"]')
                 if not meta_tags:
                     continue
-                name = clean(meta_tags[0].get('content', ''), 1)
-                if not name:
+                title = clean(meta_tags[0].get('content', ''), 1)
+                if not title:
                     continue
-                info_album = {'name': name}
+                info_album = {'title': title}
 
                 url_tags = tag.cssselect('a')
                 if url_tags:
@@ -152,7 +152,7 @@ class Lastfm(Base):
         if info:
             re_album = Title(album).get_search_re()
             for res in info['albums']:
-                if re_album.search(res['name']):
+                if re_album.search(res['title']):
                     return res
 
     def _get_similar_url(self, query):
@@ -177,11 +177,11 @@ class Lastfm(Base):
                 links = li.cssselect('a')
                 if not links:
                     continue
-                titles = li.cssselect('.link-reference h3')
-                if not titles:
+                names = li.cssselect('.link-reference h3')
+                if not names:
                     continue
                 yield {
-                    'title': clean(titles[0].text, 1),
+                    'name': clean(names[0].text, 1),
                     'url': urljoin(self.url, links[0].get('href')),
                     }
 
