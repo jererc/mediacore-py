@@ -30,10 +30,7 @@ class Netflix(Base):
     def __init__(self, username, password, cookie_file=None):
         self.cookie_file = cookie_file
         super(Netflix, self).__init__(cookie_file=self.cookie_file)
-        if self.url:
-            self.logged = self._login(username, password)
-        else:
-            self.logged = False
+        self.logged = self._login(username, password) if self.url else False
 
     def _is_logged(self):
         for form in self.browser.forms():
