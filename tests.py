@@ -923,7 +923,7 @@ class NetflixTest(unittest.TestCase):
         res = self.obj.get_info('planet of the apes')
 
         self.assertTrue(res)
-        self.assertEqual(res.get('year'), 1968)
+        self.assertEqual(res.get('date'), 1968)
         for key in ('title', 'url'):
             self.assertTrue(res.get(key), 'failed to get %s' % key)
 

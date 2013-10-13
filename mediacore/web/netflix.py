@@ -82,14 +82,14 @@ class Netflix(Base):
 
             year_ = div.cssselect('.year')
             if not year_:
-                logger.error('failed to get year from %s' % log)
+                logger.error('failed to get date from %s' % log)
                 continue
             res = RE_YEAR.search(year_[0].text)
             if not res:
-                logger.error('failed to get year from %s' % year_[0].text)
+                logger.error('failed to get date from %s' % year_[0].text)
                 continue
-            info['year'] = int(res.group(1))
-            if year and abs(year - info['year']) > 1:
+            info['date'] = int(res.group(1))
+            if year and abs(year - info['date']) > 1:
                 continue
 
             return info
