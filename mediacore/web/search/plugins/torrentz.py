@@ -68,12 +68,9 @@ class Torrentz(Base):
         '''Iterate over torrent urls fetched from the raw html data.
         '''
         browser = Browser()
-        if not browser.open(url):
-            logger.debug('failed to get torrent url from %s' % url)
-            return
-
-        for link in browser.links(url_regex=RE_URL_MAGNET):
-            yield link.absolute_url
+        if browser.open(url):
+            for link in browser.links(url_regex=RE_URL_MAGNET):
+                yield link.absolute_url
 
     def _get_torrent_url(self, query, url):
         re_q = Title(query).get_search_re(mode='__lazy__')

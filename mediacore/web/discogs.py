@@ -71,6 +71,7 @@ class Discogs(object):
                 info = self._get_album_info(release.key_release)
                 res['albums'].append(info)
                 res['genre'] = list(set(res['genre'] + info['genre']))
+            return res
         except (discogs.HTTPError, ConnectionError), e:
             logger.error('failed to get info for %s%s: %s', artist, ' - %s' % album if album else '', str(e))
 
