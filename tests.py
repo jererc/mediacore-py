@@ -31,6 +31,7 @@ from mediacore.web.search import Result, RateLimitReached
 from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
+from mediacore.web.search.plugins.bitsnoop import Bitsnoop
 
 from mediacore.web.search import SearchError
 
@@ -713,7 +714,7 @@ class ThepiratebayTest(unittest.TestCase):
                     break
 
             self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
-            self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+            self.assertTrue(seeds_count >= self.max_results / 2)
 
     def test_results_sort(self):
         with nested(patch.object(module_web, '_validate_rate'),
@@ -812,7 +813,7 @@ class TorrentzTest(unittest.TestCase):
                     break
 
             self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
-            self.assertTrue(seeds_count > self.max_results * 2 / 3.0)
+            self.assertTrue(seeds_count >= self.max_results / 2)
 
     def test_results_sort(self):
         with nested(patch.object(module_web, '_validate_rate'),
@@ -860,6 +861,88 @@ class TorrentzTest(unittest.TestCase):
                 mock_getlink.return_value = None
 
                 list(self.obj.results(TVSHOW, pages_max=self.pages_max))
+
+            self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
+
+
+class BitsnoopTest(unittest.TestCase):
+
+    def setUp(self):
+        self.pages_max = 3
+        self.max_results = 10
+        self.obj = Bitsnoop()
+
+    def test_results(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            count = 0
+            seeds_count = 0
+            for res in self.obj.results(GENERIC_QUERY):
+                if not res:
+                    continue
+
+                for key in ('title', 'url', 'category', 'size', 'date'):
+                    self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
+
+                if res.get('seeds') is not None:
+                    seeds_count += 1
+
+                count += 1
+                if count == self.max_results:
+                    break
+
+            self.assertEqual(count, self.max_results, 'failed to find enough results for "%s"' % (GENERIC_QUERY))
+            self.assertTrue(seeds_count >= self.max_results / 2)
+
+    def test_results_sort(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            for sort in ('date', 'popularity'):
+                count = 0
+                val_prev = None
+                for res in self.obj.results(GENERIC_QUERY, sort=sort):
+                    if not res:
+                        continue
+
+                    if sort == 'date':
+                        val = res.date
+                        if val_prev:
+                            self.assertTrue(val <= val_prev + timedelta(seconds=60), '%s %s is not older than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    elif sort == 'popularity':
+                        val = res.seeds
+                        if val_prev:
+                            self.assertTrue(val <= val_prev, '%s %s is not less than %s' % (sort, val, val_prev))
+                        val_prev = val
+
+                    count += 1
+                    if count == self.max_results:
+                        break
+
+                self.assertTrue(count > self.max_results * 3 / 4.0)
+
+    def test_results_pages(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            orig = self.obj._next
+
+            with nested(patch.object(Bitsnoop, '_next'),
+                    patch.object(Result, 'get_hash'),
+                    ) as (mock_next, mock_hash):
+                mock_next.side_effect = orig
+                mock_hash.return_value = None
+
+                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
 
             self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
