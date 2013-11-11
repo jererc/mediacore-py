@@ -146,7 +146,9 @@ class Torrentz(Base):
                     log = html.tostring(dl, pretty_print=True)[:1000]
 
                     result = Result()
+                    result.type = 'torrent'
                     result.safe = False
+
                     title = self.get_link_text(html.tostring(links[0]))
                     if not title:
                         continue
@@ -189,7 +191,6 @@ class Torrentz(Base):
 
                     # Find torrent url
                     url_info = urljoin(self.url, links[0].get('href'))
-                    result.type = 'torrent'
                     result.url = self._get_torrent_url(query, url_info)
                     if not result.url:
                         continue

@@ -64,7 +64,7 @@ class Thepiratebay(Base):
     def _next(self, page):
         return self.browser.follow_link(
                 text_regex=re.compile(r'^\D*%s\D*$' % page),
-                url_regex=re.compile(r'/%s/' % (page - 1), re.I))
+                url_regex=re.compile(r'/%s/' % (page - 1)))
 
     def _sort(self, sort):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
@@ -107,7 +107,9 @@ class Thepiratebay(Base):
                 log = html.tostring(tr, pretty_print=True)[:1000]
 
                 result = Result()
+                result.type = 'torrent'
                 result.safe = False
+
                 try:
                     result.category = tr[0].cssselect('a')[0].text.lower()
                 except Exception:
@@ -119,7 +121,6 @@ class Thepiratebay(Base):
                     continue
                 result.title = res[0].text
 
-                result.type = 'torrent'
                 result.url = self._get_magnet_url(tr)
                 if not result.url:
                     logger.error('failed to get magnet url from %s' % log)
