@@ -106,6 +106,9 @@ class Browser(mechanize.Browser):
         return mechanize.Browser._mech_open(self, *args, **kwargs)
 
     def _mech_open(self, *args, **kwargs):
+        self.tree = None
+        self.url_error = None
+
         def get_url():
             url = kwargs.get('url', args[0])
             if hasattr(url, 'get_full_url'):
@@ -117,7 +120,6 @@ class Browser(mechanize.Browser):
             res = self._mech_open_wrapper(*args, **kwargs)
             res = self._handle_response(res)
             self.tree = self._get_tree(res)
-            self.url_error = None
             return res
         except HTTPError, e:
             self.url_error = e
@@ -129,7 +131,6 @@ class Browser(mechanize.Browser):
             logger.error('failed to open %s: %s' % (get_url(), str(e)))
         except Exception, e:
             logger.exception('exception (args: %s, %s): %s' % (args, kwargs, str(e)))
-        self.tree = None
 
     def follow_link(self, *args, **kwargs):
         try:
