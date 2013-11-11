@@ -18,7 +18,10 @@ RE_URLS = {
 RE_TITLE = re.compile(r'(.*)\s+\((\d\d\d\d)\)$')
 RE_DATE = re.compile(r'\b(\d\d\d\d)\b')
 RE_NAMES_EXCL = re.compile(r'(more credit|full cast)', re.I)
-
+RE_RELEASES_URLS = {
+    'dvd_new': re.compile(r'DVD & Blu-Ray', re.I),
+    'watch_now': re.compile(r'Watch Now', re.I),
+    }
 logger = logging.getLogger(__name__)
 
 
@@ -189,3 +192,34 @@ class Imdb(Base):
             res.extend(info.get('titles_known_for', []))
 
         return res
+
+    @timeout(120)
+    def releases(self):
+        for release_type, re_release in RE_RELEASES_URLS.items():
+            if not self.browser.follow_link(text_regex=re_release):
+                logger.error('failed to get %s releases', release_type)
+                continue
+
+            for item in self.browser.cssselect('.list_item', []):
+                log = html.tostring(item, pretty_print=True)[:1000]
+
+                link_ = item.cssselect('.info a')
+                if not link_:
+                    logger.error('failed to get link from %s' % log)
+                    continue
+
+                result = {
+                    'title': clean(link_[0].text, 1),
+                    'url': urljoin(self.url, link_[0].get('href')),
+                    }
+                rating_ = item.cssselect('.rating-rating .value')
+                if not rating_:
+                    logger.error('failed to get rating from %s' % log)
+                    continue
+                try:
+                    result['rating'] = float(rating_[0].text)
+                except ValueError:
+                    logger.error('failed to get rating from %s' % log)
+                    pass
+
+                yield result

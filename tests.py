@@ -405,6 +405,17 @@ class ImdbTest(unittest.TestCase):
             for key in ('title', 'url', 'date'):
                 self.assertTrue(r.get(key), 'failed to get %s from %s' % (key, r))
 
+    def test_releases(self):
+        count = 0
+        for res in self.obj.releases():
+            if not res:
+                continue
+            for key in ('title', 'url'):
+                self.assertTrue(res.get(key), 'failed to get %s from %s' % (key, res))
+            count += 1
+
+        self.assertTrue(count > 20)
+
 
 class TvrageTest(unittest.TestCase):
 
