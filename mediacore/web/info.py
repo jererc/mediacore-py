@@ -106,13 +106,14 @@ def similar_music(band, filters=None,
             if randomize_albums:
                 albums = randomize(albums)
 
-            type = obj.__class__.__name__.lower()
+            filter_type = obj.__class__.__name__.lower()
+            filters_ = filters.get(filter_type)
             for album_info in albums:
                 if album_info['title'] in albums_names:
                     continue
                 albums_names.append(album_info['title'])
 
-                if filters and not validate_info(album_info, filters[type]):
+                if filters_ and not validate_info(album_info, filters_):
                     continue
                 yield (similar_band, album_info['title'])
 
