@@ -97,10 +97,10 @@ class Media(Model):
         '''
         media = cls.get(id) or {}
         files = media.get('files', [])
-        res = list(set([get_file(f).get_base() for f in files if os.path.exists(f)]))
+        res = [get_file(f).get_base() for f in files if os.path.exists(f)]
         if dirs_only:
-            return [f for f in res if os.path.isdir(f)]
-        return res
+            res = [f for f in res if os.path.isdir(f)]
+        return list(set(res))
 
     @classmethod
     def search(cls, name, category, **kwargs):

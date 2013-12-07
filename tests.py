@@ -36,7 +36,7 @@ from mediacore.web.search.plugins.bitsnoop import Bitsnoop
 from mediacore.web.search import SearchError
 
 
-GENERIC_QUERY = 'lost'
+GENERIC_QUERY = 'brrip'
 
 MOVIE = 'blue velvet'
 MOVIE_DIRECTOR = 'david lynch'

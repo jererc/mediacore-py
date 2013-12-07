@@ -15,7 +15,7 @@ class Search(Model):
     COL = 'searches'
 
     @classmethod
-    def add(cls, name, category, mode='once', langs=None, safe=True,
+    def add(cls, name, category, mode='once', langs=None, safe=False,
             **kwargs):
         doc = {
             'name': name.lower(),
