@@ -74,22 +74,28 @@ def add_movies(artist, langs):
     try:
         titles = get_movies_titles(artist)
     except InfoError, e:
-        logger.info('failed to find movies from "%s": %s' % (artist, str(e)))
-        return
+        logger.info('failed to find movies from "%s": %s', artist, str(e))
+        return False
+
     if not titles:
-        logger.info('failed to find movies from "%s"' % artist)
-        return
-    for title in titles:
-        Search.add(title, category='movies', langs=langs)
+        logger.info('failed to find movies from "%s"', artist)
+    else:
+        for title in titles:
+            if Search.add(title, category='movies', langs=langs):
+                logger.info('created movies search "%s"', title)
+    return True
 
 def add_music(artist):
     try:
         albums = get_music_albums(artist)
     except InfoError, e:
-        logger.info('failed to find albums from "%s": %s' % (artist, str(e)))
-        return
+        logger.info('failed to find albums from "%s": %s', artist, str(e))
+        return False
+
     if not albums:
-        logger.info('failed to find albums from "%s"' % artist)
-        return
-    for album in albums:
-        Search.add(artist, album=album, category='music')
+        logger.info('failed to find albums from "%s"', artist)
+    else:
+        for album in albums:
+            if Search.add(artist, album=album, category='music'):
+                logger.info('created music search "%s - %s"', artist, album)
+    return True
