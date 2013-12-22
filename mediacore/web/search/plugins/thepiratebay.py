@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class Thepiratebay(Base):
     URL = [
-        'http://thepiratebay.sx',
+        'http://thepiratebay.se',
         'http://pirateproxy.net',
         ]
 
