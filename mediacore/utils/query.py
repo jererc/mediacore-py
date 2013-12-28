@@ -4,8 +4,7 @@ import logging
 from filetools.title import clean
 
 from mediacore.model.settings import Settings
-from mediacore.web.info import (get_movies_titles, get_music_albums,
-        InfoError)
+from mediacore.web.info import get_movies_titles, get_music_albums, InfoError
 
 
 CAT_DEF = {
