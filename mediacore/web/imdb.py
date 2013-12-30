@@ -22,6 +22,7 @@ RE_RELEASES_URLS = {
     'dvd_new': re.compile(r'DVD & Blu-Ray', re.I),
     'watch_now': re.compile(r'Watch Now', re.I),
     }
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +56,7 @@ class Imdb(Base):
 
         headers = self.browser.cssselect('.header')
         if not headers:
-            logger.error('failed to get title from %s' % url)
+            logger.error('failed to get title from %s', url)
             return
         titles = headers[0].cssselect('[itemprop="name"]')
         if not titles:
@@ -104,8 +105,6 @@ class Imdb(Base):
         info = {
             'url': url,
             'titles_known_for': [],
-            'titles_director': [],
-            'titles_actor': [],
             }
 
         # Get "known for" titles
@@ -113,13 +112,11 @@ class Imdb(Base):
             links = div.cssselect('a')
             if not links:
                 continue
-
             title = links[-1].text
             res = RE_TITLE.search(title)
             if not res:
-                logger.error('failed to get title and date from "%s"' % title)
+                logger.error('failed to get title and date from "%s"', title)
                 continue
-
             title, date = res.groups()
             info['titles_known_for'].append({
                     'title': clean(title, 1),
@@ -128,30 +125,23 @@ class Imdb(Base):
                     })
 
         # Get filmography
-        category = None
-        for div in self.browser.cssselect('div', []):
-            id_ = div.get('id')
-            if id_ == 'filmo-head-Director':
-                category = 'titles_director'
-            elif id_ == 'filmo-head-Actor':
-                category = 'titles_actor'
-            elif id_:
-                category = None
+        for category, el_id in [
+                ('titles_director', 'filmo-head-director'),
+                ('titles_actor', 'filmo-head-actor'),
+                ]:
+            info.setdefault(category, [])
 
-            class_ = div.get('class')
-            if category and class_ and 'filmo-row' in class_:
-                links = div.cssselect('a')
+            for el in self.browser.cssselect('#%s + .filmo-category-section div' % el_id):
+                links = el.cssselect('a')
                 if not links:
                     continue
                 title = {
                     'title': clean(links[0].text, 1),
                     'url': urljoin(self.url, links[0].get('href')),
                     }
-
-                # Get date
-                spans = div.cssselect('span')
-                if spans:
-                    res = RE_DATE.findall(spans[0].text)
+                els = el.cssselect('.year_column')
+                if els:
+                    res = RE_DATE.findall(els[0].text)
                     if res:
                         title['date'] = int(res[0])
 
@@ -205,7 +195,7 @@ class Imdb(Base):
 
                 link_ = item.cssselect('.info a')
                 if not link_:
-                    logger.error('failed to get link from %s' % log)
+                    logger.error('failed to get link from %s', log)
                     continue
 
                 result = {
@@ -214,12 +204,12 @@ class Imdb(Base):
                     }
                 rating_ = item.cssselect('.rating-rating .value')
                 if not rating_:
-                    logger.error('failed to get rating from %s' % log)
+                    logger.error('failed to get rating from %s', log)
                     continue
                 try:
                     result['rating'] = float(rating_[0].text)
                 except ValueError:
-                    logger.error('failed to get rating from %s' % log)
+                    logger.error('failed to get rating from %s', log)
                     pass
 
                 yield result
