@@ -50,13 +50,13 @@ class Rottentomatoes(Base):
                 continue
             res = RE_RATING.search(rating_[0].text)
             if not res:
-                logger.error('failed to get rating from "%s"' % log)
+                logger.error('failed to get rating from "%s"', log)
                 continue
             info['rating'] = int(res.group(1))
 
             title_ = li.cssselect('.nomargin a')
             if not title_:
-                logger.error('failed to get title from %s' % log)
+                logger.error('failed to get title from %s', log)
                 continue
             info['title'] = clean(title_[0].text, 1)
             if not re_q.search(info['title']):
@@ -71,7 +71,7 @@ class Rottentomatoes(Base):
     def _releases(self, type, pages_max):
         url_root = URLS.get(type)
         if not url_root:
-            logger.error('unhandled release type "%s"' % type)
+            logger.error('unhandled release type "%s"', type)
             return
         url = url_root
 
@@ -99,7 +99,7 @@ class Rottentomatoes(Base):
                     continue
                 res = RE_RATING.search(rating_[0].text)
                 if not res:
-                    logger.error('failed to get rating from "%s"' % log)
+                    logger.error('failed to get rating from "%s"', log)
                     continue
                 info['rating'] = int(res.group(1))
 

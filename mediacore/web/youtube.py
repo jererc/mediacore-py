@@ -24,7 +24,7 @@ class Youtube(object):
         try:
             feed = self.yt_service.YouTubeQuery(yt_query)
         except Exception, e:
-            logger.error('failed to process query "%s": %s' % (query, str(e)))
+            logger.error('failed to process query "%s": %s', query, str(e))
             return
 
         for entry in feed.entry:

@@ -51,7 +51,7 @@ class Vcdquality(Base):
 
                 dates = tr.cssselect('.dateField')
                 if not dates:
-                    logger.error('failed to get date from %s' % log)
+                    logger.error('failed to get date from %s', log)
                     continue
                 date = datetime.strptime('%s %s' % (clean(dates[0].text), now.year), '%d %b %Y')
                 if date > now:

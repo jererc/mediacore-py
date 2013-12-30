@@ -55,7 +55,7 @@ class Tvrage(Base):
 
         titles = self.browser.cssselect('.content_title a')
         if not titles:
-            logger.error('failed to get title from %s' % info['url'])
+            logger.error('failed to get title from %s', info['url'])
             return
         info['title'] = clean(titles[0].text, 1)
 
@@ -126,7 +126,7 @@ class Tvrage(Base):
             try:
                 classification = clean(tr[2].cssselect('td')[0].text).lower()
             except Exception:
-                logger.error('failed to get classification from %s' % log)
+                logger.error('failed to get classification from %s', log)
                 continue
             if classification != info.get('classification'):
                 continue
@@ -137,14 +137,14 @@ class Tvrage(Base):
                 info_['title'] = clean(link.text, 1)
                 info_['url'] = urljoin(self.url, link.get('href'))
             except Exception:
-                logger.error('failed to get title from %s' % log)
+                logger.error('failed to get title from %s', log)
             if info_['title'] == clean(query, 1):
                 continue
 
             try:
                 info_['date'] = get_year(tr[1].cssselect('td')[0].text)
             except Exception:
-                logger.error('failed to get date from %s' % log)
+                logger.error('failed to get date from %s', log)
             if years_delta is not None and abs(datetime.now().year - info_['date']) > years_delta:
                 continue
 
@@ -164,7 +164,7 @@ class Tvrage(Base):
             except IndexError:
                 info['network'] = clean(tr[0][0][0].text, 1)
             except Exception:
-                logger.error('failed to get network from %s' % log)
+                logger.error('failed to get network from %s', log)
 
             try:
                 link = tr[1].cssselect('a')[0]
@@ -173,7 +173,7 @@ class Tvrage(Base):
             except IndexError:
                 info['title'] = clean(tr[1][0][0].text, 1)
             except Exception:
-                logger.error('failed to get title from %s' % log)
+                logger.error('failed to get title from %s', log)
                 continue
 
             try:
@@ -183,6 +183,6 @@ class Tvrage(Base):
                     info['season'] = int(res.group(1))
                     info['episode'] = int(res.group(2))
             except Exception:
-                logger.debug('failed to get season and episode from %s' % log)
+                logger.debug('failed to get season and episode from %s', log)
 
             yield info

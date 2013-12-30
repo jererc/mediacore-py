@@ -42,7 +42,7 @@ class Google(Base):
 
                 links = li.cssselect('a')
                 if not links:
-                    logger.error('failed to get links from %s' % log)
+                    logger.error('failed to get links from %s', log)
                     continue
                 url = links[0].get('href')
                 if not url or not urlparse(url).scheme:

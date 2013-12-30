@@ -53,7 +53,7 @@ class Metacritic(Base):
     def get_info(self, query, category, artist=None):
         re_cat = CAT_DEF.get(category)
         if not re_cat:
-            logger.error('unknown category %s' % category)
+            logger.error('unknown category %s', category)
             return
         if not self.browser.submit_form(self.url,
                 fields={'search_term': query}):
@@ -68,14 +68,14 @@ class Metacritic(Base):
 
             type_ = li.cssselect('.result_type')
             if not type_:
-                logger.error('failed to get type from %s' % log)
+                logger.error('failed to get type from %s', log)
                 continue
             if not re_cat.search(clean(type_[0][0].text, 1)):
                 continue
 
             title_ = li.cssselect('.product_title a')
             if not title_:
-                logger.error('failed to get title from %s' % log)
+                logger.error('failed to get title from %s', log)
                 continue
             info['title'] = clean(title_[0].text, 1)
             if not re_q.search(info['title']):
@@ -89,14 +89,14 @@ class Metacritic(Base):
                     scores.append(int(rating_[0].text))
                 except ValueError:
                     if not RE_NA_SCORE.search(rating_[0].text):
-                        logger.error('failed to get metascore from "%s"' % log)
+                        logger.error('failed to get metascore from "%s"', log)
             rating_ = li.cssselect('.textscore')
             if rating_:
                 try:
                     scores.append(int(float(rating_[0].text) * 10))
                 except ValueError:
                     if not RE_NA_SCORE.search(rating_[0].text):
-                        logger.error('failed to get user score from %s' % html.tostring(rating_[0]))
+                        logger.error('failed to get user score from %s', html.tostring(rating_[0]))
             if scores:
                 info['rating'] = sum(scores) / len(scores)
 
@@ -110,7 +110,7 @@ class Metacritic(Base):
     def _releases(self, type):
         url = URLS.get(type)
         if not url:
-            logger.error('unhandled release type "%s"' % type)
+            logger.error('unhandled release type "%s"', type)
             return
         self.browser.open(url)
 
@@ -141,7 +141,7 @@ class Metacritic(Base):
                 info['rating'] = int(rating_[0].text)
             except ValueError:
                 if not RE_NA_SCORE.search(rating_[0].text):
-                    logger.error('failed to get rating from "%s"' % log)
+                    logger.error('failed to get rating from "%s"', log)
                 continue
 
             date_ = li.cssselect('.release_date .data')
@@ -149,7 +149,7 @@ class Metacritic(Base):
                 continue
             res = RE_DATE.search(date_[0].text)
             if not res:
-                logger.error('failed to get date from "%s"' % log)
+                logger.error('failed to get date from "%s"', log)
                 continue
             date_str = '%s %s %02d' % (year, res.group(1).lower(), int(res.group(2)))
             date = datetime.strptime(date_str, '%Y %b %d')

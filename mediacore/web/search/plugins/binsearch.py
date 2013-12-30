@@ -44,7 +44,7 @@ class Binsearch(Base):
                 elif unit == 'd':
                     return datetime.utcnow() - timedelta(days=val)
 
-        logger.error('failed to get date from "%s"' % age)
+        logger.error('failed to get date from "%s"', age)
         return datetime.utcnow() - timedelta(days=1100)
 
     def results(self, query, sort='date', pages_max=1, **kwargs):
@@ -91,16 +91,16 @@ class Binsearch(Base):
 
                 age = tr[-1].text
                 if not age:
-                    logger.error('failed to get age from %s' % log)
+                    logger.error('failed to get age from %s', log)
                 result.date = self._get_date(age)
 
                 refs = tr.cssselect('input[type="checkbox"]')
                 if not refs:
-                    logger.error('failed to get references list from %s' % log)
+                    logger.error('failed to get references list from %s', log)
                     continue
                 ref = refs[0].get('name')
                 if not ref:
-                    logger.error('failed to get reference from %s' % log)
+                    logger.error('failed to get reference from %s', log)
                     continue
                 result.ref = ref
 
@@ -144,7 +144,7 @@ def _get_collection(url):
             continue
         ref = refs[0].get('name')
         if not ref:
-            logger.error('failed to get reference from %s' % html.tostring(refs[0], pretty_print=True))
+            logger.error('failed to get reference from %s', html.tostring(refs[0], pretty_print=True))
             continue
         res.append(ref)
 

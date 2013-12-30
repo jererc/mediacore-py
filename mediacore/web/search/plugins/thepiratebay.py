@@ -113,29 +113,29 @@ class Thepiratebay(Base):
                 try:
                     result.category = tr[0].cssselect('a')[0].text.lower()
                 except Exception:
-                    logger.error('failed to get category from %s' % log)
+                    logger.error('failed to get category from %s', log)
 
                 res = tr.cssselect('div.detName a')
                 if not res:
-                    logger.error('failed to get title from %s' % log)
+                    logger.error('failed to get title from %s', log)
                     continue
                 result.title = res[0].text
 
                 result.url = self._get_magnet_url(tr)
                 if not result.url:
-                    logger.error('failed to get magnet url from %s' % log)
+                    logger.error('failed to get magnet url from %s', log)
                     continue
                 if not result.get_hash():
                     continue
 
                 res = tr.cssselect('.detDesc')
                 if not res:
-                    logger.error('failed to get details from %s' % log)
+                    logger.error('failed to get details from %s', log)
                     continue
                 details = clean(html.tostring(res[0]))
                 res_ = RE_DETAILS.search(details)
                 if not res_:
-                    logger.error('failed to parse details: %s' % details)
+                    logger.error('failed to parse details: %s', details)
                     continue
                 date, size = res_.groups()
                 if not result.get_size(size):
@@ -147,7 +147,7 @@ class Thepiratebay(Base):
                 try:
                     result.date = self._get_date(date)
                 except Exception, e:
-                    logger.error('failed to get date from "%s": %s' % (date, str(e)))
+                    logger.error('failed to get date from "%s": %s', date, str(e))
                     continue
 
                 try:

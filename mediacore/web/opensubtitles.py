@@ -36,7 +36,7 @@ class Opensubtitles(Base):
                 name='loginform', fields=fields):
             return False
         if 'loginform' in [f.name for f in self.browser.forms()]:
-            logger.error('failed to login as %s' % username)
+            logger.error('failed to login as %s', username)
             return False
         return True
 
@@ -51,7 +51,7 @@ class Opensubtitles(Base):
 
         if not urls and self.browser.tree is not None \
                 and not RE_NO_RESULT.search(self.browser.tree.text_content()):
-            logger.error('failed to find subtitles files at %s' % url)
+            logger.error('failed to find subtitles files at %s', url)
 
         return urls
 

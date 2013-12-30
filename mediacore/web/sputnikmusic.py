@@ -53,7 +53,7 @@ class Sputnikmusic(Base):
         try:
             info['name'] = clean(band_info[0][0][0].text, 1)
         except Exception:
-            logger.error('failed to get band name from %s' % url)
+            logger.error('failed to get band name from %s', url)
             return
         tags = band_info[0].cssselect('.tags a')
         info['genre'] = [clean(t.text, 1) for t in tags if t.text]
@@ -82,14 +82,14 @@ class Sputnikmusic(Base):
                 try:
                     info_album['title'] = clean(tds[1][0][0][0][0].text, 1)
                 except Exception:
-                    logger.error('failed to get album title from %s' % log)
+                    logger.error('failed to get album title from %s', log)
                     continue
                 if not info_album['title']:
                     continue
                 try:
                     info_album['url'] = urljoin(self.url, tds[0][0].get('href'))
                 except Exception:
-                    logger.error('failed to get album url from %s' % log)
+                    logger.error('failed to get album url from %s', log)
                     continue
                 try:
                     info_album['rating'] = float(tds[1][-1][0][0][0][0][0].text)
@@ -106,7 +106,7 @@ class Sputnikmusic(Base):
                     if not RE_THUMBNAIL_UNKNOWN.search(urlparse(url_).path):
                         info_album['url_thumbnail'] = url_
                 except Exception:
-                    logger.error('failed to get cover url from %s' % log)
+                    logger.error('failed to get cover url from %s', log)
 
                 info['albums'].append(info_album)
 
@@ -151,7 +151,7 @@ class Sputnikmusic(Base):
             return
         url = self._get_reviews_url()
         if not url:
-            logger.error('failed to get reviews url at %s' % self.url)
+            logger.error('failed to get reviews url at %s', self.url)
             return
 
         self.browser.open(url)
@@ -161,18 +161,18 @@ class Sputnikmusic(Base):
             info = {}
             links = td.cssselect('a')
             if not links:
-                logger.error('failed to get release from %s' % log)
+                logger.error('failed to get release from %s', log)
                 continue
 
             try:
                 info['artist'] = clean(links[1][0][0].text, 1)
             except Exception:
-                logger.error('failed to get artist from %s' % log)
+                logger.error('failed to get artist from %s', log)
                 continue
             try:
                 info['album'] = clean(links[1][0][-1].text, 1)
             except Exception:
-                logger.error('failed to get album from %s' % log)
+                logger.error('failed to get album from %s', log)
                 continue
             try:
                 info['rating'] = float(td[-1][-1].text)
@@ -182,15 +182,15 @@ class Sputnikmusic(Base):
                 y, m, d = RE_DATE_REVIEW.search(td[-1].text).groups()
                 info['date'] = datetime(int(y), int(m), int(d))
             except Exception:
-                logger.debug('failed to get date from %s' % log)
+                logger.debug('failed to get date from %s', log)
                 continue
             try:
                 info['url_review'] = urljoin(self.url, links[0].get('href'))
             except Exception:
-                logger.error('failed to get review url from %s' % log)
+                logger.error('failed to get review url from %s', log)
             try:
                 info['url_thumbnail'] = urljoin(self.url, links[0][0].get('src'))
             except Exception:
-                logger.error('failed to get thumbnail url from %s' % log)
+                logger.error('failed to get thumbnail url from %s', log)
 
             yield info

@@ -121,13 +121,13 @@ class Bitsnoop(Base):
 
                 links = el.cssselect('a')
                 if not links:
-                    logger.error('failed to get title from %s' % log)
+                    logger.error('failed to get title from %s', log)
                     continue
                 result.title = clean(html.tostring(links[0]))
 
                 details = el.cssselect('.torInfo')
                 if not details:
-                    logger.error('failed to get details from %s' % log)
+                    logger.error('failed to get details from %s', log)
                     continue
                 res = RE_DETAILS.search(html.tostring(details[0]))
                 if not res:
@@ -137,7 +137,7 @@ class Bitsnoop(Base):
                 date = res.group(3)
                 result.date = self._get_date(date)
                 if not result.date:
-                    logger.error('failed to get date from "%s"' % date)
+                    logger.error('failed to get date from "%s"', date)
                     continue
 
                 seeds = details[0].cssselect('span.seeders')
@@ -149,7 +149,7 @@ class Bitsnoop(Base):
 
                 tds = el.cssselect('tr td')
                 if not tds:
-                    logger.error('failed to get size from %s' % log)
+                    logger.error('failed to get size from %s', log)
                     continue
                 if not result.get_size(tds[0].text):
                     continue
@@ -157,7 +157,7 @@ class Bitsnoop(Base):
                 url_info = urljoin(self.url, links[0].get('href')).encode('utf-8')
                 result.url = self._get_torrent_url(url_info)
                 if not result.url:
-                    logger.error('failed to get magnet url from %s' % url_info)
+                    logger.error('failed to get magnet url from %s', url_info)
                     continue
                 if not result.get_hash():
                     continue

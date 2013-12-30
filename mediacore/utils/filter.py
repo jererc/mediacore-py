@@ -43,7 +43,7 @@ def validate_info(info, filters):
             if not _validate(val, filters):
                 return False
         except Exception:
-            logger.error('failed to validate field "%s" (%s) using filters %s' % (key, val, filters))
+            logger.error('failed to validate field "%s" (%s) using filters %s', key, val, filters)
             return None
 
     return True

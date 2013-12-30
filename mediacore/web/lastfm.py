@@ -78,7 +78,7 @@ class Lastfm(Base):
                 if url_tags:
                     info_album['url'] = urljoin(self.url, url_tags[0].get('href'))
                 else:
-                    logger.error('failed to get album url from %s' % log)
+                    logger.error('failed to get album url from %s', log)
 
                 url_thumbnails = tag.cssselect('.album-item-cover img')
                 if url_thumbnails:
@@ -86,7 +86,7 @@ class Lastfm(Base):
                     if not RE_THUMBNAIL_UNKNOWN.search(urlparse(url_).path):
                         info_album['url_thumbnail'] = url_
                 else:
-                    logger.error('failed to get album thumbnail url from %s' % log)
+                    logger.error('failed to get album thumbnail url from %s', log)
 
                 date_tags = tag.cssselect('time')
                 if not date_tags:
@@ -130,7 +130,7 @@ class Lastfm(Base):
         # Get albums
         links = self.browser.cssselect('.artist-top-albums a')
         if not links:
-            logger.debug('failed to find albums link for "%s" at %s' % (artist, url))
+            logger.debug('failed to find albums link for "%s" at %s', artist, url)
             return info
         elif not RE_ALBUMS.search(links[0].text):
             return
@@ -163,7 +163,7 @@ class Lastfm(Base):
         links = self.browser.cssselect('.similar-artists a')
         if links and RE_SIMILAR.search(links[0].text):
             return urljoin(self.url, links[0].get('href'))
-        logger.error('failed to find similar artists link for %s at %s' % (query, url))
+        logger.error('failed to find similar artists link for %s at %s', query, url)
 
     def _similar_artists(self, url, pages_max):
         for i in range(pages_max):

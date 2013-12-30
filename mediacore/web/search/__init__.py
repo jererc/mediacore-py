@@ -86,11 +86,11 @@ class Result(dotdict):
         self.size = get_size(val)
         if self.size is not None:
             return True
-        logger.error('failed to get result size from "%s"' % val)
+        logger.error('failed to get result size from "%s"', val)
 
     def get_hash(self):
         if not self.url:
-            logger.error('failed to get hash from result %s' % self)
+            logger.error('failed to get hash from result %s', self)
         else:
             res = parse_magnet_url(self.url)
             if res and 'xt' in res:
@@ -98,13 +98,13 @@ class Result(dotdict):
                 if hash:
                     self.hash = hash
                     return True
-            logger.error('failed to get hash from magnet url "%s"' % self.url)
+            logger.error('failed to get hash from magnet url "%s"', self.url)
 
 def _get_module(plugin):
     try:
         return __import__('%s.%s' % (PLUGINS_DIR, plugin), globals(), locals(), [plugin], -1)
     except ImportError:
-        logger.error('failed to import %s module' % plugin)
+        logger.error('failed to import %s module', plugin)
 
 def _get_plugin_priority(plugin):
     module_ = _get_module(plugin)
@@ -132,7 +132,7 @@ def _get_plugin_object(plugin):
     try:
         object_ = getattr(module_, plugin.capitalize())(**args)
     except Exception:
-        logger.error('failed to get %s object' % plugin.capitalize())
+        logger.error('failed to get %s object', plugin.capitalize())
         return None
     if hasattr(object_, 'URL') and not object_.url:
         return None
@@ -161,7 +161,7 @@ def results(query, plugins=None, **kwargs):
 
         query_ = get_query(query, kwargs.get('category'))
         if query and not query_:
-            logger.error('failed to process query "%s"' % query)
+            logger.error('failed to process query "%s"', query)
             continue
 
         try:

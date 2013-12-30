@@ -47,7 +47,7 @@ class Netflix(Base):
         if not self.browser.submit_form(self.url, fields=fields):
             return False
         if not self._is_logged():
-            logger.error('failed to login as %s' % username)
+            logger.error('failed to login as %s', username)
             return False
 
         self.save_cookie(self.cookie_file)
@@ -73,7 +73,7 @@ class Netflix(Base):
 
             title_ = div.cssselect('.title a')
             if not title_:
-                logger.error('failed to get title from %s' % log)
+                logger.error('failed to get title from %s', log)
                 continue
             info['title'] = clean(title_[0].text, 1)
             if not re_q.search(info['title']):
@@ -82,11 +82,11 @@ class Netflix(Base):
 
             year_ = div.cssselect('.year')
             if not year_:
-                logger.error('failed to get date from %s' % log)
+                logger.error('failed to get date from %s', log)
                 continue
             res = RE_YEAR.search(year_[0].text)
             if not res:
-                logger.error('failed to get date from %s' % year_[0].text)
+                logger.error('failed to get date from %s', year_[0].text)
                 continue
             info['date'] = int(res.group(1))
             if year and abs(year - info['date']) > 1:

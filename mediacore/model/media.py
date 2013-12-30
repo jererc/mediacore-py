@@ -57,7 +57,7 @@ class Media(Model):
         '''
         type = TYPES_DEF.get(category)
         if not type:
-            logger.error('invalid category "%s"' % category)
+            logger.error('invalid category "%s"', category)
             return
 
         info = {}

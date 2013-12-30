@@ -92,14 +92,14 @@ class Browser(mechanize.Browser):
             try:
                 data = data.decode(res[0], 'replace')
             except Exception, e:
-                logger.error('failed to decode "%s" at %s: %s' % (res[0],
-                        response.geturl(), str(e)))
+                logger.error('failed to decode "%s" at %s: %s', res[0],
+                        response.geturl(), str(e))
 
         try:
             return html.fromstring(data)
         except Exception, e:
-            logger.error('failed to parse "%s" at %s: %s' % (response_data,
-                    response.geturl(), str(e)))
+            logger.error('failed to parse "%s" at %s: %s', response_data,
+                    response.geturl(), str(e))
 
     @timeout(REQUEST_TIMEOUT)
     def _mech_open_wrapper(self, *args, **kwargs):
@@ -123,14 +123,14 @@ class Browser(mechanize.Browser):
             return res
         except HTTPError, e:
             self.url_error = e
-            logger.error('failed to open %s: %s' % (get_url(), str(e)))
+            logger.error('failed to open %s: %s', get_url(), str(e))
         except (socket.timeout, TimeoutError), e:
-            logger.error('failed to open %s (timeout): %s' % (get_url(), str(e)))
+            logger.error('failed to open %s (timeout): %s', get_url(), str(e))
         except (HTTPException, URLError, socket.gaierror,
                 socket.error, mechanize.BrowserStateError), e:
-            logger.error('failed to open %s: %s' % (get_url(), str(e)))
+            logger.error('failed to open %s: %s', get_url(), str(e))
         except Exception, e:
-            logger.exception('exception (args: %s, %s): %s' % (args, kwargs, str(e)))
+            logger.exception('exception (args: %s, %s): %s', args, kwargs, str(e))
 
     def follow_link(self, *args, **kwargs):
         try:
@@ -154,23 +154,23 @@ class Browser(mechanize.Browser):
 
         if debug:
             for form in self.forms():
-                logger.info('form: %s' % str(form))
+                logger.info('form: %s', str(form))
 
         form_info = {'name': name} if name else {'nr': index or 0}
         try:
             self.select_form(**form_info)
         except mechanize.FormNotFoundError:
-            logger.error('failed to find form %s at %s' % (form_info, url or self.geturl()))
+            logger.error('failed to find form %s at %s', form_info, url or self.geturl())
             return
         except Exception, e:
-            logger.error('failed to find form %s at %s: %s' % (form_info, url or self.geturl(), str(e)))
+            logger.error('failed to find form %s at %s: %s', form_info, url or self.geturl(), str(e))
             return
 
         for key, val in fields.items():
             try:
                 self[key] = val
             except Exception:
-                logger.error('failed to set field "%s" to "%s" for form %s' % (key, val, str(self)))
+                logger.error('failed to set field "%s" to "%s" for form %s', key, val, str(self))
 
         return self.submit()
 
@@ -197,7 +197,7 @@ class RealBrowser(webdriver.Firefox):
             self._open(url)
             return True
         except Exception, e:
-            logger.error('failed to open %s: %s' % (url, str(e)))
+            logger.error('failed to open %s: %s', url, str(e))
 
 
 class Base(object):
@@ -230,7 +230,7 @@ class Base(object):
         res = RE_LINK_TITLE.search(val)
         if res:
             return res.group(1)
-        logger.error('failed to get text from link "%s"' % val)
+        logger.error('failed to get text from link "%s"', val)
 
     def check_next_link(self, link, text='next'):
         next_text = clean(self.get_link_text(html.tostring(link)), 1)
@@ -243,7 +243,7 @@ def update_rate(name, count=None):
         info = {'begin': datetime.utcnow(), 'count': 0}
     elif count == -1:
         delta = datetime.utcnow() - info['begin']
-        logger.info('reached %s rate limit after %s seconds' % (name, delta.seconds))
+        logger.info('reached %s rate limit after %s seconds', name, delta.seconds)
 
     info['count'] = count or info['count'] + 1
     Work.set_info('rate', name, info)

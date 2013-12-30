@@ -66,15 +66,15 @@ class Filestube(object):
             for res in tree.xpath('results/hits'):
                 url = res.xpath('link')[0].text
                 if not url:
-                    logger.error('failed to get url from %s' % data)
+                    logger.error('failed to get url from %s', data)
                     continue
                 size = res.xpath('size')[0].text
                 if not size:
-                    logger.error('failed to get size from %s' % data)
+                    logger.error('failed to get size from %s', data)
                     continue
                 date = res.xpath('added')[0].text
                 if not date:
-                    logger.error('failed to get date from %s' % data)
+                    logger.error('failed to get date from %s', data)
                     continue
 
                 result = Result()
