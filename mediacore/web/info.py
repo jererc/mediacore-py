@@ -24,8 +24,12 @@ def get_movies_titles(name):
         raise InfoError('failed to connect to imdb')
 
     info = imdb.get_info(name, type='name') or {}
-    movies_info = info.get('titles_known_for', [])
-    return list(set([a['title'] for a in movies_info]))
+    stat = []
+    for key in ('titles_known_for', 'titles_director', 'titles_actor'):
+        titles_ = info.get(key, [])
+        stat.append((len(titles_), titles_))
+    titles = sorted(stat)[-1][1]
+    return list(set([t['title'] for t in titles]))
 
 def get_music_albums(band):
     '''Get albums from a music band.
