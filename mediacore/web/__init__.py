@@ -123,12 +123,12 @@ class Browser(mechanize.Browser):
             return res
         except HTTPError, e:
             self.url_error = e
-            logger.error('failed to open %s: %s', get_url(), str(e))
+            logger.error('network error for %s: %s', get_url(), str(e))
         except (socket.timeout, TimeoutError), e:
-            logger.error('failed to open %s (timeout): %s', get_url(), str(e))
+            logger.error('network error for %s: %s', get_url(), str(e))
         except (HTTPException, URLError, socket.gaierror,
                 socket.error, mechanize.BrowserStateError), e:
-            logger.error('failed to open %s: %s', get_url(), str(e))
+            logger.error('network error for %s: %s', get_url(), str(e))
         except Exception, e:
             logger.exception('exception (args: %s, %s): %s', args, kwargs, str(e))
 

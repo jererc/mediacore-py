@@ -36,7 +36,8 @@ class Discogs(object):
         except (discogs.PaginationError, discogs.HTTPError):
             pass
         except ConnectionError, e:
-            logger.error('failed to get object for %s%s: %s', artist, ' - %s' % album if album else '', str(e))
+            msg = '%s%s' % (artist, ' - %s' % album if album else '')
+            logger.error('network error for %s: %s', msg, str(e))
         return None
 
     def _get_album_info(sef, release):
@@ -73,7 +74,8 @@ class Discogs(object):
                 res['genre'] = list(set(res['genre'] + info['genre']))
             return res
         except (discogs.HTTPError, ConnectionError), e:
-            logger.error('failed to get info for %s%s: %s', artist, ' - %s' % album if album else '', str(e))
+            msg = '%s%s' % (artist, ' - %s' % album if album else '')
+            logger.error('network error for %s: %s', msg, str(e))
 
         return None
 
@@ -102,6 +104,6 @@ class Discogs(object):
                     if count >= releases_max:
                         break
             except (discogs.HTTPError, ConnectionError), e:
-                logger.error('failed to get %s similar: %s', artist, str(e))
+                logger.error('network error for %s: %s', artist, str(e))
 
         return res
