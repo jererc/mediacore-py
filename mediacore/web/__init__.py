@@ -197,7 +197,7 @@ class RealBrowser(webdriver.Firefox):
             self._open(url)
             return True
         except Exception, e:
-            logger.error('failed to open %s: %s', url, str(e))
+            logger.error('network error for %s: %s', url, str(e))
 
 
 class Base(object):
