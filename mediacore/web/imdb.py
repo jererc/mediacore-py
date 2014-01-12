@@ -22,6 +22,7 @@ RE_RELEASES_URLS = {
     'dvd_new': re.compile(r'DVD & Blu-Ray', re.I),
     'watch_now': re.compile(r'Watch Now', re.I),
     }
+RE_TITLES_EXCL = re.compile(r'\([^\)]*short[^\)]*\)', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,10 @@ class Imdb(Base):
                 links = el.cssselect('a')
                 if not links:
                     continue
+                text = ''.join(el.xpath("text()"))
+                if RE_TITLES_EXCL.search(text):
+                    continue
+
                 title = {
                     'title': clean(links[0].text, 1),
                     'url': urljoin(self.url, links[0].get('href')),

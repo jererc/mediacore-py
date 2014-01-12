@@ -100,6 +100,7 @@ class Result(dotdict):
                     return True
             logger.error('failed to get hash from magnet url "%s"', self.url)
 
+
 def _get_module(plugin):
     try:
         return __import__('%s.%s' % (PLUGINS_DIR, plugin), globals(), locals(), [plugin], -1)
