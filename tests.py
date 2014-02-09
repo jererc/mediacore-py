@@ -47,9 +47,9 @@ TVSHOW_SEASON = '5'
 TVSHOW_EPISODE = '06'
 TVSHOW_YEAR = 2007
 
-BAND = 'breach'
-ALBUM = 'kollapse'
-ALBUM_YEAR = 2001
+BAND = 'tim hecker'
+ALBUM = 'virgins'
+ALBUM_YEAR = 2013
 BAND2 = 'radiohead'
 
 OPENSUBTITLES_LANG = 'eng'
