@@ -52,7 +52,7 @@ class Settings(Model):
     def set_setting(cls, section, key, value):
         cls.update({'section': section},
                 {'$set': {'section': section, 'settings.%s' % key: value}},
-                upsert=True)
+                upsert=True, safe=True)
 
     @classmethod
     def set_settings(cls, section, settings, overwrite=False):
@@ -61,4 +61,4 @@ class Settings(Model):
             'settings': settings,
             }
         cls.update({'section': section},
-                doc if overwrite else {'$set': doc}, upsert=True)
+                doc if overwrite else {'$set': doc}, upsert=True, safe=True)
