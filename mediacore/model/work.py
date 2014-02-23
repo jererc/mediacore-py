@@ -14,10 +14,10 @@ class Work(Model):
     def set_info(cls, section, key, value):
         cls.update({'section': section},
                 {'$set': {'section': section, 'info.%s' % key: value}},
-                upsert=True)
+                upsert=True, safe=True)
 
     @classmethod
     def set_infos(cls, section, info, overwrite=False):
         doc = {'section': section, 'info': info}
         cls.update({'section': section},
-                doc if overwrite else {'$set': doc}, upsert=True)
+                doc if overwrite else {'$set': doc}, upsert=True, safe=True)
