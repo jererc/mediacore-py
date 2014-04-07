@@ -11,7 +11,7 @@ from mediacore.web import Base, Browser, throttle
 from mediacore.web.search import Result, SearchError
 
 
-PRIORITY = 4
+PRIORITY = 3
 CAT_DEF = {
     'anime': 'video',
     'apps': 'software',

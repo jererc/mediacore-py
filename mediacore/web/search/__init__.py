@@ -17,6 +17,7 @@ PLUGINS_DIR = 'plugins'
 logger = logging.getLogger(__name__)
 
 
+class LoginError(Exception): pass
 class SearchError(Exception): pass
 
 
@@ -94,9 +95,9 @@ class Result(dotdict):
         else:
             res = parse_magnet_url(self.url)
             if res and 'xt' in res:
-                hash = res['xt'][0].split(':')[-1].lower()
-                if hash:
-                    self.hash = hash
+                hash_ = res['xt'][0].split(':')[-1].lower()
+                if hash_:
+                    self.hash = hash_
                     return True
             logger.error('failed to get hash from magnet url "%s"', self.url)
 
@@ -132,8 +133,8 @@ def _get_plugin_object(plugin):
     args = Settings.get_settings(plugin)
     try:
         object_ = getattr(module_, plugin.capitalize())(**args)
-    except Exception:
-        logger.error('failed to get %s object', plugin.capitalize())
+    except Exception, e:
+        logger.error('failed to get %s object: %s', plugin.capitalize(), str(e))
         return None
     if hasattr(object_, 'URL') and not object_.url:
         return None
@@ -157,7 +158,6 @@ def results(query, plugins=None, **kwargs):
     for plugin in plugins:
         obj = _get_plugin_object(plugin)
         if not obj:
-            yield None
             continue
 
         query_ = get_query(query, kwargs.get('category'))
@@ -169,10 +169,11 @@ def results(query, plugins=None, **kwargs):
             for result in obj.results(query_, **kwargs):
                 result.plugin = plugin
                 yield result
-        except SearchError:
+        except SearchError, e:
             if plugin == 'torrentz' and obj.browser.url_error:
                 if obj.browser.url_error.reason.lower() == 'too many requests':
                     update_rate(plugin, count=-1)
+            logger.error('failed to get %s results for "%s": %s', plugin, query, str(e))
             yield None
         except RateLimitReached:
             yield None

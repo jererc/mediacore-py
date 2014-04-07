@@ -32,11 +32,13 @@ from mediacore.web.search.plugins.thepiratebay import Thepiratebay
 from mediacore.web.search.plugins.torrentz import Torrentz
 from mediacore.web.search.plugins.filestube import Filestube
 from mediacore.web.search.plugins.bitsnoop import Bitsnoop
+from mediacore.web.search.plugins.rutracker import Rutracker
 
 from mediacore.web.search import SearchError
 
 
 GENERIC_QUERY = 'brrip'
+GENERIC_QUERY2 = 'flac'
 
 MOVIE = 'blue velvet'
 MOVIE_DIRECTOR = 'david lynch'
@@ -701,6 +703,7 @@ class ThepiratebayTest(unittest.TestCase):
         self.pages_max = 3
         self.max_results = 10
         self.obj = Thepiratebay()
+        self.query = GENERIC_QUERY
 
     def test_results(self):
         with nested(patch.object(module_web, '_validate_rate'),
@@ -710,7 +713,7 @@ class ThepiratebayTest(unittest.TestCase):
 
             count = 0
             seeds_count = 0
-            for res in self.obj.results(GENERIC_QUERY):
+            for res in self.obj.results(self.query):
                 if not res:
                     continue
 
@@ -736,7 +739,7 @@ class ThepiratebayTest(unittest.TestCase):
             for sort in ('date', 'popularity'):
                 count = 0
                 val_prev = None
-                for res in self.obj.results(GENERIC_QUERY, sort=sort):
+                for res in self.obj.results(self.query, sort=sort):
                     if not res:
                         continue
 
@@ -772,7 +775,7 @@ class ThepiratebayTest(unittest.TestCase):
                 mock_next.side_effect = orig
                 mock_hash.return_value = None
 
-                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+                list(self.obj.results(self.query, pages_max=self.pages_max))
 
             self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
@@ -882,6 +885,7 @@ class BitsnoopTest(unittest.TestCase):
         self.pages_max = 3
         self.max_results = 10
         self.obj = Bitsnoop()
+        self.query = GENERIC_QUERY
 
     def test_results(self):
         with nested(patch.object(module_web, '_validate_rate'),
@@ -891,7 +895,7 @@ class BitsnoopTest(unittest.TestCase):
 
             count = 0
             seeds_count = 0
-            for res in self.obj.results(GENERIC_QUERY):
+            for res in self.obj.results(self.query):
                 if not res:
                     continue
 
@@ -917,7 +921,7 @@ class BitsnoopTest(unittest.TestCase):
             for sort in ('date', 'popularity'):
                 count = 0
                 val_prev = None
-                for res in self.obj.results(GENERIC_QUERY, sort=sort):
+                for res in self.obj.results(self.query, sort=sort):
                     if not res:
                         continue
 
@@ -953,7 +957,7 @@ class BitsnoopTest(unittest.TestCase):
                 mock_next.side_effect = orig
                 mock_hash.return_value = None
 
-                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+                list(self.obj.results(self.query, pages_max=self.pages_max))
 
             self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
@@ -999,9 +1003,56 @@ class FilestubeTest(unittest.TestCase):
                     ) as (mock_send,):
                 mock_send.side_effect = orig
 
-                list(self.obj.results(GENERIC_QUERY, pages_max=self.pages_max))
+                list(self.obj.results(self.query, pages_max=self.pages_max))
 
             self.assertEqual(len(mock_send.call_args_list), self.pages_max)
+
+
+@unittest.skipIf(not conf['rutracker_username'] or not conf['rutracker_password'],
+        'missing api key')
+class RutrackerTest(unittest.TestCase):
+
+    def setUp(self):
+        self.pages_max = 3
+        self.max_results = 10
+        self.obj = Rutracker(conf['rutracker_username'], conf['rutracker_password'])
+        self.query = GENERIC_QUERY2
+
+    def test_results(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            count = 0
+            for res in self.obj.results(self.query):
+                if not res:
+                    continue
+
+                for key in ('title', 'url', 'size', 'date'):
+                    self.assertTrue(res.get(key) is not None, 'failed to get %s from %s' % (key, res))
+
+                count += 1
+                if count == self.max_results:
+                    break
+
+            self.assertTrue(count > self.max_results * 2 / 3.0, 'failed to find enough results for "%s"' % (self.query))
+
+    def test_results_pages(self):
+        with nested(patch.object(module_web, '_validate_rate'),
+                patch.object(module_web, 'update_rate'),
+                ) as (mock_validate, mock_update):
+            mock_validate.return_value = True
+
+            orig = self.obj._next
+
+            with nested(patch.object(Rutracker, '_next'),
+                    ) as (mock_next,):
+                mock_next.side_effect = orig
+
+                list(self.obj.results(self.query, pages_max=self.pages_max))
+
+            self.assertEqual(len(mock_next.call_args_list), self.pages_max - 1)
 
 
 @unittest.skipIf(not conf['netflix_username'] \

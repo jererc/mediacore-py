@@ -13,7 +13,7 @@ from mediacore.web import Browser, throttle
 from mediacore.web.search import Result, SearchError
 
 
-PRIORITY = 1
+PRIORITY = None
 API_URL = 'http://api.filestube.com'
 SORT_DEF = {
     'date': 'dd',

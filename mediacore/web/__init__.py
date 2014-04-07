@@ -168,9 +168,9 @@ class Browser(mechanize.Browser):
 
         for key, val in fields.items():
             try:
-                self[key] = val
-            except Exception:
-                logger.error('failed to set field "%s" to "%s" for form %s', key, val, str(self))
+                self.form[key] = val
+            except Exception, e:
+                logger.error('failed to set field "%s" to "%s" for form %s: %s', key, val, str(self.form), str(e))
 
         return self.submit()
 

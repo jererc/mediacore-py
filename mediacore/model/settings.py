@@ -35,6 +35,7 @@ DEFAULTS = {
     'opensubtitles': {'username': '', 'password': ''},
     'netflix': {'username': '', 'password': ''},
     'filestube': {'api_key': ''},
+    'rutracker': {'username': '', 'password': ''},
     'sync': {'recurrence': 240, 'retry_delta': 30},
     }
 

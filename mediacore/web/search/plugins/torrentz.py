@@ -12,7 +12,7 @@ from mediacore.web.search import Result, SearchError
 from mediacore.utils.utils import parse_magnet_url, RE_URL_MAGNET
 
 
-PRIORITY = 3
+PRIORITY = 1
 CAT_DEF = {
     'anime': re.compile(r'\banime\b', re.I),
     'apps': re.compile(r'\bapplications?\b', re.I),
