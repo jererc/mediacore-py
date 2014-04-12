@@ -87,12 +87,15 @@ class Subscene(Base):
 
     def _get_subscene_id(self, url):
         browser = RealBrowser()
-        if browser.open(url):
-            links = browser.find_elements_by_css_selector('#downloadButton')
-            if links:
-                url = links[0].get_attribute('href')
-                if url:
-                    return parse_qs(url).values()[0]
+        try:
+            if browser.open(url):
+                links = browser.find_elements_by_css_selector('#downloadButton')
+                if links:
+                    url = links[0].get_attribute('href')
+                    if url:
+                        return parse_qs(url).values()[0]
+        finally:
+            browser.quit()
 
     def _download(self, url, dst):
         mac = self._get_subscene_id(url)

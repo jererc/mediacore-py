@@ -184,8 +184,8 @@ class RealBrowser(webdriver.Firefox):
         super(RealBrowser, self).__init__()
         self.implicitly_wait(timeout)
 
-    def __del__(self):
-        self.quit()
+    def quit(self):
+        super(RealBrowser, self).quit()
         self._abstract_display.stop()
 
     @timeout(REQUEST_TIMEOUT)
