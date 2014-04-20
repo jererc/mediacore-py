@@ -109,7 +109,7 @@ class Imdb(Base):
             }
 
         # Get "known for" titles
-        for div in self.browser.cssselect('div#knownfor div', []):
+        for div in self.browser.cssselect('div#knownfor > div', []):
             links = div.cssselect('a')
             if not links:
                 continue
