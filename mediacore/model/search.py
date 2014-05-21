@@ -57,7 +57,7 @@ class Search(Model):
             'langs': search.get('langs') or [],
             'safe': search.get('safe', True),
             }
-        for key in EXTRA_KEYS + ['source', 'similar_name']:
+        for key in EXTRA_KEYS + ['src']:
             if key in search:
                 res[key] = search[key]
 
