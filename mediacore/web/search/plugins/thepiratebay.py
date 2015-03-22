@@ -55,7 +55,7 @@ class Thepiratebay(Base):
             date = datetime.strptime('%s-%s %s' % (now.year, d, t), '%Y-%m-%d %H:%M') # add year to avoid exceptions like 29/02
         return date + (datetime.utcnow() - now)
 
-    def _get_magnet_url(self, tr):
+    def _get_torrent_url(self, tr):
         for link in tr.cssselect('a'):
             url = link.get('href')
             if url.startswith('magnet:?'):
@@ -121,7 +121,7 @@ class Thepiratebay(Base):
                     continue
                 result.title = res[0].text
 
-                result.url = self._get_magnet_url(tr)
+                result.url = self._get_torrent_url(tr)
                 if not result.url:
                     logger.error('failed to get magnet url from %s', log)
                     continue

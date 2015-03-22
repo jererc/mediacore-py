@@ -60,12 +60,6 @@ class Bitsnoop(Base):
             return None
         return datetime.now() - delta
 
-    def _get_magnet_url(self, tr):
-        for link in tr.cssselect('a'):
-            url = link.get('href')
-            if url.startswith('magnet:?'):
-                return url
-
     def _get_torrent_url(self, url):
         browser = Browser()
         if browser.open(url):

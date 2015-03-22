@@ -102,7 +102,7 @@ class Torrentz(Base):
     def _sort(self, sort):
         return self.browser.follow_link(text_regex=RE_URL_SORT[sort])
 
-    @throttle(20, 120)
+    @throttle(10, 60)
     def results(self, query, category=None, sort='date', pages_max=1,
             **kwargs):
         if not self.url:
@@ -118,7 +118,7 @@ class Torrentz(Base):
                         raise SearchError('no data')
                 else:
                     if not self.browser.submit_form(self.url,
-                            index=0, fields={'f': query}):
+                            index=0, fields={'q': query}):
                         raise SearchError('no data')
                     if sort != 'popularity':     # default sort is peers ('popularity')
                         self._sort(sort)
