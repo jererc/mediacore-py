@@ -27,7 +27,6 @@ class Vcdquality(Base):
                 url_regex=re.compile(r'browse'))
 
     def releases(self, pages_max=1):
-        now = datetime.utcnow()
         for page in range(1, pages_max + 1):
             if page > 1:
                 if not self._next(page):
@@ -36,27 +35,18 @@ class Vcdquality(Base):
                 if not self.browser.open(self._get_releases_url()):
                     return
 
-            tbodys = self.browser.cssselect('#searchResult tbody')
-            if not tbodys:
-                logger.error('failed to get results')
-                continue
+            for el in self.browser.cssselect('.container div.rls'):
+                log = html.tostring(el, pretty_print=True)[:1000]
 
-            for tr in tbodys[-1].cssselect('tr'):
-                log = html.tostring(tr, pretty_print=True)[:1000]
-
-                links = tr.cssselect('.titleField a')
+                links = el[1][0][3].cssselect('a')
                 if not links:
                     continue
-                result = {'release': links[1].text}
+                result = {'release': links[0].text}
 
-                dates = tr.cssselect('.dateField')
-                if not dates:
-                    logger.error('failed to get date from %s', log)
+                try:
+                    result['date'] = datetime.strptime(clean(el[1][0][0][0][0].text), '%d/%m/%y')
+                except Exception, e:
+                    logger.error('failed to get date from %s: %s', log, str(e))
                     continue
-                date = datetime.strptime('%s %s' % (clean(dates[0].text), now.year), '%d %b %Y')
-                if date > now:
-                    result['date'] = datetime(date.year - 1, date.month, date.day)
-                else:
-                    result['date'] = date
 
                 yield result
